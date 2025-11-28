@@ -26,9 +26,15 @@ class MaddenShowdownOptimizer extends BaseOptimizer {
      * @param {Object[]} data - Raw CSV data
      * @returns {Object[]} - Parsed player objects
      */
-    parsePlayerData(data) {
+ parsePlayerData(data) {
         const players = [];
         const cols = MaddenConfig.csvColumns;
+        
+        // DEBUG: Log first row to see column names
+        if (data.length > 0) {
+            console.log('CSV Columns found:', Object.keys(data[0]));
+            console.log('First row data:', data[0]);
+        }
         
         for (const row of data) {
             // Find values using column mappings
@@ -39,6 +45,11 @@ class MaddenShowdownOptimizer extends BaseOptimizer {
             const projection = parseFloat(this.findValue(row, cols.projection)) || 0;
             const game = this.findValue(row, cols.game);
             const id = this.findValue(row, cols.id);
+            
+            // DEBUG: Log first few rows parsing
+            if (players.length < 3) {
+                console.log('Parsing row:', { name, position, salary, team, projection });
+            }
             
             if (!name || salary <= 0) continue;
             
@@ -62,6 +73,7 @@ class MaddenShowdownOptimizer extends BaseOptimizer {
             });
         }
         
+        console.log('Total players parsed:', players.length);
         return players;
     }
     
