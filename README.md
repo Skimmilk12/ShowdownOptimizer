@@ -1,114 +1,171 @@
-# 🏈 Showdown Optimizer
+# 🏆 Showdown Optimizer
 
-A DraftKings NFL DFS lineup optimizer for Showdown and Classic contests.
+A scalable DFS lineup optimizer for DraftKings Showdown contests across multiple sports.
+
+## Current Sports
+
+| Sport | Status | Features |
+|-------|--------|----------|
+| 🎮 Madden | ✅ Ready | Showdown, Classic, Correlations |
+| 🏈 NFL | 🔜 Coming Soon | - |
+| 🏀 NBA | 🔜 Coming Soon | - |
+| ⚾ MLB | 🔜 Coming Soon | - |
+| 🏒 NHL | 🔜 Coming Soon | - |
+| 🏎️ NASCAR | 🔜 Coming Soon | - |
+| ⛳ Golf | 🔜 Coming Soon | - |
+| 🎾 Tennis | 🔜 Coming Soon | - |
 
 ## Features
 
-### Showdown Mode
-- **Captain/FLEX lineup generation** - Optimizes 6-player Showdown lineups
-- **Multi-slate support** - Manage up to 4 slates simultaneously
-- **Salary constraints** - Set custom salary floor and ceiling ($45K-$50K)
-- **Lineup diversity** - Control player exposure across your portfolio
-- **Paw Patrol Mode** - Portfolio optimization with max exposure limits
+### Madden Showdown Mode
+- **6-slate support** with time labels (12:00, 2:00, 4:00, 6:00, 8:00, 10:00)
+- **Captain/FLEX lineup generation** - 1 CPT (1.5x) + 5 FLEX
+- **Salary constraints** - Adjustable $40K-$50K range
+- **Projection floor** - Only include lineups within X% of max projection
+- **Lineup count options** - 100, 500, 2,000, 5,000
+- **Time-based generation** - 10s, 20s, 30s, 1min
+- **Player pool filtering** - By position, search
+- **CSV export** - DraftKings-ready format
 
-### Classic Mode  
-- **9-position lineups** - QB, RB, RB, WR, WR, WR, TE, FLEX, DST
-- **Weighted randomization** - Favors high-projection players while maintaining diversity
-- **Same constraints** - Salary range, diversity, and exposure controls
+### Player Data & Correlations
+- Upload historical game logs by position
+- Multi-file upload with auto-detection
+- Position correlation matrix
+- Team-level correlation analysis
 
-### Correlations
-- **Player game log analysis** - Upload historical CSVs for correlation computation
-- **Position correlation matrix** - See how positions correlate (QB-WR, RB-DST, etc.)
-- **Team correlation cards** - View player-to-player correlations by team
-- **Multi-file upload** - Ctrl+Click to upload all 5 position files at once
+## Live Demo
 
-### Entries Management
-- **Contest tracking** - Upload DraftKings entries CSV
-- **GPP vs Cash detection** - Automatically categorizes contests
-- **Fee totals** - See your total entry fees at a glance
+Access at: **https://skimmilk12.github.io/ShowdownOptimizer/**
 
-## Getting Started
-
-### Live Demo
-Access the optimizer at: `https://skimmilk12.github.io/ShowdownOptimizer/`
-
-### Local Development
-1. Clone the repository
-2. Open `index.html` in a browser
-3. No build step required - pure HTML/CSS/JS
-
-## Usage
-
-### 1. Upload Player Pool
-- Go to **Showdown** or **Classic** tab
-- Click the upload zone or drag a DraftKings CSV
-- Player pool will populate automatically
-
-### 2. Configure Settings
-- **Lineup Count**: 20, 50, 100, or 150 lineups
-- **Salary Range**: Adjust min/max salary constraints
-- **Diversity**: 0% = max optimal, 100% = max diverse
-- **Max Exposure**: Limit any single player's appearance %
-
-### 3. Generate & Export
-- Click **Generate Lineups**
-- Review generated lineups with sorting/pagination
-- Click **Export CSV** to download DraftKings-ready file
-
-### 4. Correlations (Optional)
-- Go to **Correlations** tab
-- Upload game log CSVs for each position
-- View computed correlations by position and team
-
-## File Structure
+## Project Structure
 
 ```
 ShowdownOptimizer/
-├── index.html          # Main application
+├── index.html              # Main entry point
 ├── css/
-│   └── styles.css      # All styles
+│   ├── core.css           # Base styles, theme, layout
+│   └── components.css     # Specialized components
 ├── js/
-│   ├── app.js          # Main application controller
-│   ├── showdown.js     # Showdown optimizer logic
-│   ├── classic.js      # Classic optimizer logic
-│   ├── correlations.js # Correlation computation
-│   └── utils.js        # Shared utilities
-├── data/               # (optional) Sample data
+│   ├── core/
+│   │   ├── app.js         # Main controller, sport selection
+│   │   ├── utils.js       # Shared utilities (CSV, formatting)
+│   │   ├── ui.js          # UI helpers (notifications, modals)
+│   │   └── optimizer.js   # Base optimizer class
+│   ├── sports/
+│   │   └── madden/
+│   │       ├── config.js  # Madden settings & rules
+│   │       ├── optimizer.js # Madden lineup generation
+│   │       └── ui.js      # Madden UI rendering
+│   └── features/          # (Future: correlations, entries)
+├── config/                # (Future: sport definitions)
 └── README.md
 ```
 
-## CSV Format Requirements
+## Architecture
+
+### Adding a New Sport
+
+1. Create config file: `js/sports/{sport}/config.js`
+```javascript
+const NBAConfig = {
+    id: 'nba',
+    name: 'NBA',
+    salaryCap: 50000,
+    rosterSize: 6,
+    showdown: {
+        positions: {
+            CPT: { count: 1, multiplier: 1.5 },
+            UTIL: { count: 5, multiplier: 1.0 }
+        }
+    },
+    // ... sport-specific settings
+};
+```
+
+2. Create optimizer: `js/sports/{sport}/optimizer.js`
+```javascript
+class NBAShowdownOptimizer extends BaseOptimizer {
+    // Override parsePlayerData() for NBA CSV format
+    // Override generateSingleLineup() for NBA rules
+}
+```
+
+3. Create UI: `js/sports/{sport}/ui.js`
+```javascript
+const NBAUI = {
+    init(optimizer) { /* ... */ },
+    renderUI() { /* ... */ }
+};
+```
+
+4. Register in `app.js`:
+```javascript
+sports: {
+    nba: {
+        config: () => window.NBAConfig,
+        optimizer: () => new NBAShowdownOptimizer(),
+        ui: () => window.NBAUI,
+        ready: true
+    }
+}
+```
+
+### Key Classes
+
+- **`BaseOptimizer`** - Core optimization logic (salary, diversity, exposure)
+- **`MaddenShowdownOptimizer`** - Extends base with Madden-specific rules
+- **`Utils`** - CSV parsing, formatting, storage helpers
+- **`UI`** - Notifications, modals, progress bars, tables
+- **`App`** - Main controller, sport selection, routing
+
+## CSV Format
 
 ### DraftKings Player Pool
 Standard DraftKings export with columns:
-- Name, Position, Salary, Team, AvgPointsPerGame (or projection column)
+- Name, Position, Salary, Team, AvgPointsPerGame
 
-### Player Game Logs (for correlations)
+### Player Game Logs (Correlations)
 CSV with columns:
-- Player/Name, Team, Week, Points/FPTS/DKPts
+- Player/Name, Team, Week, Points/FPTS
 
-File naming convention for auto-detection:
+File naming for auto-detection:
 - `QB_gamelog.csv`, `RB_data.csv`, `WR_stats.csv`, etc.
 
-## Technical Notes
+## Development
 
-- **Pure client-side** - No server required, runs entirely in browser
-- **No dependencies** - Vanilla JavaScript, no frameworks
-- **LocalStorage** - Settings persist across sessions
-- **Responsive** - Works on desktop and mobile
+### Local Setup
+```bash
+git clone https://github.com/Skimmilk12/ShowdownOptimizer.git
+cd ShowdownOptimizer
+# Open index.html in browser - no build step needed!
+```
+
+### Making Changes
+1. Edit relevant files in `js/` or `css/`
+2. Refresh browser to test
+3. Commit and push to GitHub
+4. GitHub Pages auto-deploys
 
 ## Roadmap
 
+- [ ] NBA Showdown support
 - [ ] Integrate correlations into lineup generation
 - [ ] Player lock/exclude functionality
-- [ ] Game stacking rules
-- [ ] Late swap support
 - [ ] Ownership projections
+- [ ] Late swap support
+- [ ] Entry management & contest tracking
+
+## Tech Stack
+
+- **Pure JavaScript** - No frameworks, no build step
+- **CSS Variables** - Easy theming
+- **LocalStorage** - Settings persistence
+- **Modular Architecture** - Easy to extend
 
 ## License
 
-MIT License - feel free to use and modify.
+MIT License
 
 ## Author
 
-Built for the DFS community. Good luck! 🎰
+Built for the DFS community 🎰
