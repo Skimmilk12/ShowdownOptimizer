@@ -1,113 +1,118 @@
 # Showdown Optimizer - Development Log
 
-## Current Status: v2.0 - Foundation Complete
-**Last Updated:** November 28, 2024
+## Current Version: v2.1 - Modular Refactor (Working)
+
+### Project Status: ✅ WORKING
+- Showdown CSV parsing: ✅ Working (uses original logic)
+- Lineup generation: ✅ Working (uses original logic)
+- Player pool display: ✅ Working
+- Multi-slate support: ✅ Working
+- Classic mode: 🔜 Coming soon
+- Player Data/Correlations: 🔜 Coming soon
+- Entry Optimizer: 🔜 Coming soon
 
 ---
 
-## What's Built
+## 2025-11-28: Modular Refactor v2.1
 
-### Core Architecture ✅
-- Sport selector homepage (cards for each sport)
-- Modular file structure supporting multiple sports
-- Base optimizer class that all sports extend
-- Shared utilities (CSV parsing, formatting, storage)
-- Shared UI components (notifications, modals, sliders, tables)
-- Dark theme with CSS variables
+### What Changed
+Rebuilt from the original monolithic HTML into a modular structure while **preserving the exact working parsing and generation logic**.
 
-### Madden Showdown ✅
-- 6 slates with times (12:00, 2:00, 4:00, 6:00, 8:00, 10:00)
-- Salary range dual slider ($40K-$50K)
-- Projection Floor slider (80%-100%)
-- Lineup count options: 100, 500, 2,000, 5,000
-- Time-based generation: 10s, 20s, 30s, 1min
-- Generate Lineups + ALL buttons
-- Player Pool table with position filters
-- Player search
-- CSV export (DraftKings format)
-- Tabs: "Madden SD" | "Madden Classic" | "Player Data"
-
-### Player Data Tab ✅
-- Individual position upload cards (QB, RB, WR, TE, DST)
-- ALL upload card with multi-file select (Ctrl+Click)
-- Auto-detection of position from filename
-- Visual status indicators (dots turn green when loaded)
-
----
-
-## What's In Progress
-
-### Madden Classic Mode 🔲
-- Placeholder UI exists
-- Needs 9-position lineup generation logic
-
-### Correlations 🔲
-- Upload UI complete
-- Correlation computation not yet implemented
-- Integration into lineup generation not started
-
----
-
-## Known Issues
-
-1. None currently - fresh build
-
----
-
-## Next Priorities
-
-1. Test the v2 build on live site
-2. Fix any bugs found during testing
-3. Implement correlation computation
-4. Add NBA Showdown support
-
----
-
-## Version History
-
-### v2.0 (Nov 28, 2024)
-- Complete rebuild with scalable architecture
-- Sport selector homepage
-- Modular file structure (js/core/, js/sports/{sport}/)
-- Madden Showdown fully functional
-- Player Data tab with ALL upload card
-
-### v1.0 (Nov 28, 2024)
-- Initial monolithic build
-- Basic Showdown/Classic/Correlations/Entries tabs
-- Different UI than intended
-
----
-
-## File Reference
-
+### File Structure
 ```
 ShowdownOptimizer/
-├── index.html
+├── index.html                    # Main page with embedded app controller
 ├── css/
-│   ├── core.css
-│   └── components.css
+│   └── styles.css               # All styles extracted from original
 ├── js/
 │   ├── core/
-│   │   ├── app.js
-│   │   ├── utils.js
-│   │   ├── ui.js
-│   │   └── optimizer.js
+│   │   └── utils.js             # Shared utilities (parseCSVLine, etc.)
 │   └── sports/
 │       └── madden/
-│           ├── config.js
-│           ├── optimizer.js
-│           └── ui.js
-├── README.md
+│           ├── config.js        # Sport-specific settings
+│           └── showdown.js      # Showdown optimizer (ORIGINAL LOGIC)
 └── DEVLOG.md
 ```
 
+### Key Decision: Preserve Original Logic
+The original code had working CSV parsing that correctly handled DraftKings' offset format:
+- Player pool starts at Row 8, Column 12 (not row 1, col 1)
+- Entry data in columns A-K, player data in columns L+
+- Searches for "Position" header to find player pool location
+
+**This logic was kept EXACTLY as-is in showdown.js**
+
+### What's Modular Now
+1. **Utils (js/core/utils.js)**: Shared functions that any sport can use
+   - `parseCSVLine()` - handles quoted CSV values
+   - `extractPlayerName()` - strips DK player IDs
+   - `downloadFile()` - creates downloads
+   - `isCashGame()` - detects contest type
+   - Storage helpers
+
+2. **Config (js/sports/madden/config.js)**: Sport-specific settings
+   - Salary caps, roster rules
+   - Slate configurations
+   - Position colors
+   - NFL team database
+
+3. **Showdown (js/sports/madden/showdown.js)**: Core optimizer
+   - `parseCSV()` - ORIGINAL working DK parsing
+   - `generateLineups()` - ORIGINAL generation algorithm
+   - `generateOptimalLineupForCaptain()` - ORIGINAL combinatorial search
+   - `findBestFivePlayers()` - ORIGINAL exhaustive search
+   - `generateRandomizedLineup()` - ORIGINAL diversity generator
+
+4. **App Controller (in index.html)**: UI event handling
+   - Connects buttons/inputs to MaddenShowdown methods
+   - Renders player pool and lineups
+   - Manages tab navigation
+
+### How to Add a New Sport
+1. Create `js/sports/{sport}/config.js` with sport settings
+2. Create `js/sports/{sport}/showdown.js` (or classic.js) with optimizer
+3. Add tab to index.html
+4. Add sport initialization to app controller
+
+### Coming Soon
+- [ ] Classic mode (9-position)
+- [ ] Player Data tab (correlation upload)
+- [ ] Entry Optimizer (Paw Patrol mode)
+- [ ] Export to DraftKings format
+
 ---
 
-## Notes for Claude
+## Previous History
 
-When starting a new chat:
-1. User may just say "let's continue" or describe what they want to work on
-2. Fetch this DEVLOG.md first to understand current state
-3. Fetch specific code files as needed from the repo
-4. Update this DEVLOG.md when significant progress is made
+### 2025-11-28: Initial v2 Rebuild (BROKEN)
+- Attempted to rewrite parsing logic from scratch
+- **Broke DraftKings CSV parsing** - didn't handle offset format
+- Lesson learned: Don't rewrite working code, just reorganize it
+
+### 2025-11-28: Original v1
+- Single monolithic HTML file (~4000 lines)
+- All features working
+- Difficult to maintain and extend
+
+---
+
+## Testing Checklist
+
+### Showdown Tab
+- [ ] Upload DK CSV → Players load correctly
+- [ ] Slate auto-detected from game time
+- [ ] Player pool shows with correct projections
+- [ ] Generate button creates lineups
+- [ ] Lineups display with correct salaries/projections
+- [ ] Export CSV works
+- [ ] Pagination works for >100 lineups
+
+### Known Issues
+- None currently
+
+---
+
+## Tech Stack
+- Pure HTML/CSS/JavaScript (no build step)
+- GitHub Pages hosting
+- Dark theme with CSS variables
