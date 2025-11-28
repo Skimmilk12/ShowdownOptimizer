@@ -39,22 +39,63 @@ const Utils = {
      * @param {string} csvText - Raw CSV content
      * @returns {Object[]} - Array of row objects with header keys
      */
+  /**
+     * Parse entire CSV text into array of objects
+     * @param {string} csvText - Raw CSV content
+     * @returns {Object[]} - Array of row objects with header keys
+     */
     parseCSV(csvText) {
         const lines = csvText.trim().split('\n');
         if (lines.length < 2) return [];
         
-        const headers = this.parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+        // Check if this is a DraftKings entries export (has player data offset)
+        // DK exports have entries at top and player pool starting around row 8, column 12
+        let dataStartRow = 0;
+        let dataStartCol = 0;
+        
+        // Look for the player data header row
+        for (let i = 0; i < Math.min(lines.length, 15); i++) {
+            const values = this.parseCSVLine(lines[i]);
+            
+            // Find if this row contains "Position" and "Salary" headers
+            const posIdx = values.findIndex(v => v.toLowerCase() === 'position');
+            const salIdx = values.findIndex(v => v.toLowerCase() === 'salary');
+            
+            if (posIdx !== -1 && salIdx !== -1) {
+                dataStartRow = i;
+                dataStartCol = posIdx;
+                console.log(`Found player data at row ${i}, column ${posIdx}`);
+                break;
+            }
+        }
+        
+        // Parse from the detected start position
+        const headerLine = this.parseCSVLine(lines[dataStartRow]);
+        const headers = headerLine.slice(dataStartCol).map(h => h.trim().toLowerCase());
+        
+        console.log('Headers found:', headers);
+        
         const rows = [];
         
-        for (let i = 1; i < lines.length; i++) {
-            const values = this.parseCSVLine(lines[i]);
+        for (let i = dataStartRow + 1; i < lines.length; i++) {
+            const allValues = this.parseCSVLine(lines[i]);
+            const values = allValues.slice(dataStartCol);
+            
+            // Skip empty rows
+            if (values.every(v => !v || v.trim() === '')) continue;
+            
             const row = {};
             headers.forEach((h, idx) => {
                 row[h] = values[idx] || '';
             });
-            rows.push(row);
+            
+            // Only add rows that have actual data (position and salary)
+            if (row['position'] && row['salary']) {
+                rows.push(row);
+            }
         }
         
+        console.log(`Parsed ${rows.length} data rows`);
         return rows;
     },
     
