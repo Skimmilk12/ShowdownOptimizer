@@ -14,6 +14,9 @@
 // 9. Copy the Web App URL (NOT the script editor URL!)
 // 10. Paste that URL in ShowdownOptimizer's Setup Auto-Push
 //
+// IMPORTANT: After updating this code, you must create a NEW deployment!
+// Go to Deploy > New deployment (not "Manage deployments")
+//
 // The URL will look like: https://script.google.com/macros/s/XXXXX/exec
 // Make sure it ends with /exec, NOT /dev
 
@@ -56,18 +59,42 @@ function doPost(e) {
     const spreadsheet = SpreadsheetApp.openById(SHEET_IDS[position]);
     const sheet = spreadsheet.getSheets()[0]; // First sheet
 
-    // Append each record as a new row
-    // Format: Name, Position, Team, Week, Opponent, FPTS
+    // Get existing data to find where to insert
+    const existingData = sheet.getDataRange().getValues();
+
     let addedCount = 0;
+
+    // Process each record
     records.forEach(function(record) {
-      sheet.appendRow([
+      // Build the full row with all columns
+      // Format: Name, Position, Team, Week, Opponent, Result, [stats...], FPTS, Salary
+      const row = [
         record.name,
         record.position,
         record.team || '',
         record.week,
         record.opponent || '',
-        record.fpts
-      ]);
+        record.result || ''
+      ];
+
+      // Add all stats (if they exist)
+      if (record.stats && Array.isArray(record.stats)) {
+        record.stats.forEach(function(stat) {
+          row.push(stat);
+        });
+      }
+
+      // Add FPTS and Salary at the end
+      row.push(record.fpts);
+      row.push(record.salaryFormatted || ('$' + record.salary));
+
+      // Find the right position to insert (after header, grouped by player name)
+      let insertRow = findInsertPosition(sheet, record.name, record.week);
+
+      // Insert the row
+      sheet.insertRowAfter(insertRow);
+      sheet.getRange(insertRow + 1, 1, 1, row.length).setValues([row]);
+
       addedCount++;
     });
 
@@ -84,6 +111,48 @@ function doPost(e) {
       error: error.toString()
     });
   }
+}
+
+// Find the row position to insert a new record
+// Groups records by player name and sorts by week (descending - highest week first)
+function findInsertPosition(sheet, playerName, newWeek) {
+  const data = sheet.getDataRange().getValues();
+
+  // Start after header row (row 1)
+  let insertAfterRow = 1;
+  let foundPlayer = false;
+  let lastPlayerRow = 1;
+
+  // Find where this player's records are (or where they should go alphabetically)
+  for (let i = 1; i < data.length; i++) {
+    const rowPlayerName = data[i][0]; // Column A = Player name
+    const rowWeek = parseInt(data[i][3]) || 0; // Column D = Week
+
+    if (rowPlayerName === playerName) {
+      foundPlayer = true;
+      lastPlayerRow = i + 1; // +1 because sheets are 1-indexed
+
+      // If this row has a lower week number, insert before it
+      if (rowWeek < newWeek) {
+        return i; // Insert at this position (pushes this row down)
+      }
+    } else if (foundPlayer) {
+      // We've passed all of this player's rows
+      // Insert at the end of their section
+      return lastPlayerRow;
+    } else if (rowPlayerName > playerName && !foundPlayer) {
+      // This player should go before this row alphabetically
+      return i;
+    }
+  }
+
+  // If player was found but we're at the end, insert after last row
+  if (foundPlayer) {
+    return lastPlayerRow;
+  }
+
+  // If player not found at all, add at the end
+  return data.length;
 }
 
 // Handle GET requests (for testing)
