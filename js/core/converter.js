@@ -140,8 +140,29 @@ function populateTeamDropdown() {
 }
 
 // ==========================================
-// PARSING LOGIC
+// PARSING LOGIC (DraftKings line-by-line format)
 // ==========================================
+
+// Team name to abbreviation mapping
+const TEAM_NAME_MAP = {
+    'Steelers': 'PIT', 'Cardinals': 'ARI', 'Bears': 'CHI', 'Bengals': 'CIN',
+    'Browns': 'CLE', 'Cowboys': 'DAL', 'Broncos': 'DEN', 'Lions': 'DET',
+    'Packers': 'GB', 'Texans': 'HOU', 'Colts': 'IND', 'Jaguars': 'JAX',
+    'Chiefs': 'KC', 'Raiders': 'LV', 'Chargers': 'LAC', 'Rams': 'LAR',
+    'Dolphins': 'MIA', 'Vikings': 'MIN', 'Patriots': 'NE', 'Saints': 'NO',
+    'Giants': 'NYG', 'Jets': 'NYJ', 'Eagles': 'PHI', 'Ravens': 'BAL',
+    'Bills': 'BUF', 'Panthers': 'CAR', 'Falcons': 'ATL', 'Seahawks': 'SEA',
+    '49ers': 'SF', 'Buccaneers': 'TB', 'Titans': 'TEN', 'Commanders': 'WAS'
+};
+
+// Number of stat columns per position (for parsing game log lines)
+const POSITION_STAT_COUNT = {
+    QB: 16,   // COMP,ATT,PCT,YDS,AVG,LNG,TD,INT,RATE,ATT,YDS,AVG,LNG,TD,FUM,LOST
+    RB: 13,   // ATT,YDS,AVG,LNG,TD,REC,TAR,YDS,AVG,LNG,TD,FUM,LOST
+    WR: 13,   // REC,TAR,YDS,AVG,LNG,TD,ATT,YDS,AVG,LNG,TD,FUM,LOST
+    TE: 13,   // REC,TAR,YDS,AVG,LNG,TD,ATT,YDS,AVG,LNG,TD,FUM,LOST
+    DST: 9    // INT,DFR,SACK,STY,DTD,PA,PaYDA,RuYDA,TYDA
+};
 
 function parseConverterData() {
     const textarea = document.getElementById('cvPasteArea');
@@ -152,50 +173,56 @@ function parseConverterData() {
         return;
     }
 
-    // Split into lines and filter empty
-    const lines = rawData.split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-        updateStatus('Need at least 2 lines (header + data)', 'error');
+    // Split into lines and clean
+    const lines = rawData.split('\n').map(line => line.trim()).filter(line => line);
+    if (lines.length < 10) {
+        updateStatus('Not enough data to parse', 'error');
         return;
     }
-
-    // Extract player info from the pasted data (DraftKings format)
-    const extractedInfo = extractPlayerInfo(lines);
 
     // Get manual overrides if provided
     const manualName = document.getElementById('cvPlayerName').value.trim();
     const manualTeam = document.getElementById('cvPlayerTeam').value;
     const manualPosition = document.getElementById('cvPlayerPosition').value;
 
-    // Use extracted info, falling back to manual input
-    const playerName = manualName || extractedInfo.name;
-    const playerTeam = manualTeam || extractedInfo.team;
+    // ========================================
+    // Step 1: Extract player info from header
+    // ========================================
+    let playerName = manualName;
+    let teamAbbr = manualTeam;
+    let position = manualPosition;
 
-    // Find the header line (contains "Week" and "FPTS")
-    let headerLineIndex = -1;
-    for (let i = 0; i < Math.min(lines.length, 10); i++) {
-        const lineUpper = lines[i].toUpperCase();
-        if ((lineUpper.includes('WEEK') || lineUpper.includes('WK')) &&
-            (lineUpper.includes('FPTS') || lineUpper.includes('PTS') || lineUpper.includes('SALARY'))) {
-            headerLineIndex = i;
-            break;
+    // Look for "Team" label, then player name, team name, position
+    for (let i = 0; i < Math.min(lines.length, 15); i++) {
+        const line = lines[i];
+        const lineUpper = line.toUpperCase();
+
+        // "Team" label indicates player info section
+        if (line === 'Team' && i + 3 < lines.length) {
+            if (!playerName) playerName = lines[i + 1]; // Player name
+            const teamName = lines[i + 2]; // Team name (e.g., "Bills")
+            if (!teamAbbr && TEAM_NAME_MAP[teamName]) {
+                teamAbbr = TEAM_NAME_MAP[teamName];
+            }
+            // Position follows team name
+            if (!position && i + 3 < lines.length) {
+                const possiblePos = lines[i + 3].toUpperCase();
+                if (['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'DEF'].includes(possiblePos)) {
+                    position = possiblePos === 'DEF' ? 'DST' : possiblePos;
+                }
+            }
+            continue;
         }
-    }
 
-    if (headerLineIndex === -1) {
-        updateStatus('Could not find game log header (Week/FPTS)', 'error');
-        return;
-    }
+        // Also check for standalone position markers
+        if (!position && ['QB', 'RB', 'WR', 'TE', 'K', 'DST', 'DEF'].includes(lineUpper)) {
+            position = lineUpper === 'DEF' ? 'DST' : lineUpper;
+        }
 
-    const headers = parseTabOrSpaceLine(lines[headerLineIndex]);
-
-    // Detect position from headers
-    const detectedPosition = detectPositionFromHeaders(headers);
-    const position = manualPosition || detectedPosition || extractedInfo.position;
-
-    if (!position) {
-        updateStatus('Could not detect position. Please select manually.', 'error');
-        return;
+        // Check for team abbreviation directly
+        if (!teamAbbr && NFL_TEAM_ABBRS.includes(lineUpper)) {
+            teamAbbr = lineUpper;
+        }
     }
 
     if (!playerName) {
@@ -204,19 +231,126 @@ function parseConverterData() {
         return;
     }
 
-    // Find column indices
-    const columnIndices = findColumnIndices(headers);
+    if (!position) {
+        updateStatus('Could not detect position. Please select manually.', 'error');
+        return;
+    }
 
-    // Parse data rows (after header)
-    const records = [];
-    for (let i = headerLineIndex + 1; i < lines.length; i++) {
-        const row = parseTabOrSpaceLine(lines[i]);
-        if (row.length < 3) continue;
-
-        const record = parseGameRow(row, columnIndices, playerName, playerTeam, position);
-        if (record) {
-            records.push(record);
+    // ========================================
+    // Step 2: Find game log start (look for "Week" then a number)
+    // ========================================
+    let gameLogStart = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].toUpperCase() === 'WEEK') {
+            // Find first numeric week number after headers
+            for (let j = i + 1; j < lines.length; j++) {
+                const weekNum = parseInt(lines[j]);
+                if (!isNaN(weekNum) && weekNum >= 1 && weekNum <= 25) {
+                    // Validate: next line should be FPTS (decimal number)
+                    if (j + 1 < lines.length) {
+                        const fpts = parseFloat(lines[j + 1]);
+                        if (!isNaN(fpts)) {
+                            // And line after should be salary ($X,XXX)
+                            if (j + 2 < lines.length && lines[j + 2].startsWith('$')) {
+                                gameLogStart = j;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (gameLogStart !== -1) break;
         }
+    }
+
+    if (gameLogStart === -1) {
+        updateStatus('Could not find game log data', 'error');
+        return;
+    }
+
+    // ========================================
+    // Step 3: Parse game entries (line by line)
+    // ========================================
+    const statCount = POSITION_STAT_COUNT[position] || 13;
+    // Each game entry consists of: Week, FPTS, Salary, Team1, @, Team2, Result, ...stats
+    // Minimum lines per game: 7 (week, fpts, salary, team1, @, team2, result) + stats
+    const minLinesPerGame = 7 + statCount;
+
+    const records = [];
+    let i = gameLogStart;
+
+    while (i < lines.length) {
+        // Try to parse a game entry
+        const week = parseInt(lines[i]);
+        if (isNaN(week) || week < 1 || week > 25) {
+            i++;
+            continue;
+        }
+
+        // Check if we have enough lines for a full game entry
+        if (i + 6 >= lines.length) break;
+
+        const fpts = parseFloat(lines[i + 1]);
+        if (isNaN(fpts)) {
+            i++;
+            continue;
+        }
+
+        const salaryStr = lines[i + 2];
+        if (!salaryStr.startsWith('$')) {
+            i++;
+            continue;
+        }
+        const salary = parseInt(salaryStr.replace(/[$,]/g, '')) || 0;
+
+        // Parse matchup: team1, @, team2, result
+        // Format varies: could be "BUF @ SEA" or separate lines
+        let opponent = '';
+        let result = '';
+        let nextIndex = i + 3;
+
+        // Read matchup components
+        const team1 = lines[nextIndex] || '';
+        nextIndex++;
+        const atSymbol = lines[nextIndex] || '';
+        nextIndex++;
+        const team2 = lines[nextIndex] || '';
+        nextIndex++;
+
+        // Determine opponent (with @ prefix if away)
+        if (atSymbol === '@') {
+            // Away game: team1 is player's team, team2 is opponent
+            opponent = '@' + team2;
+        } else if (team1 === '@' || atSymbol.includes('@')) {
+            // Different format
+            opponent = '@' + team2;
+        } else {
+            // Home game: team2 is opponent
+            opponent = team2;
+        }
+
+        // Result line (e.g., "W 31-28" or "L 24-28" or "0-0")
+        if (nextIndex < lines.length) {
+            result = lines[nextIndex];
+            nextIndex++;
+        }
+
+        // Skip stat columns
+        nextIndex += statCount;
+
+        records.push({
+            player: playerName,
+            position: position,
+            team: teamAbbr || '',
+            week: week,
+            opponent: opponent,
+            result: result,
+            fpts: fpts,
+            salary: salary
+        });
+
+        // Move to next game entry
+        i = nextIndex;
     }
 
     if (records.length === 0) {
@@ -224,32 +358,31 @@ function parseConverterData() {
         return;
     }
 
-    // Update state
+    // ========================================
+    // Step 4: Add to player data and update UI
+    // ========================================
     converterState.parsedRecords = records;
     converterState.currentPlayer = playerName;
     converterState.currentPosition = position;
     converterState.playersParsed++;
 
-    // AUTO-ADD to player data immediately (no extra click needed!)
-    const newRecords = records.map(r => ({
-        name: r.player,
-        position: r.position,
-        team: r.team,
-        week: r.week,
-        opponent: r.opponent,
-        fpts: r.fpts
-    }));
-
-    // Add to playerGameData (avoiding duplicates)
+    // AUTO-ADD to player data immediately
     const existingKeys = new Set(
         playerGameData[position].map(r => `${r.name}|${r.week}`)
     );
 
     let addedCount = 0;
-    newRecords.forEach(record => {
-        const key = `${record.name}|${record.week}`;
+    records.forEach(record => {
+        const key = `${record.player}|${record.week}`;
         if (!existingKeys.has(key)) {
-            playerGameData[position].push(record);
+            playerGameData[position].push({
+                name: record.player,
+                position: record.position,
+                team: record.team,
+                week: record.week,
+                opponent: record.opponent,
+                fpts: record.fpts
+            });
             existingKeys.add(key);
             addedCount++;
         }
@@ -259,7 +392,7 @@ function parseConverterData() {
 
     // Update UI
     updateStatus(`Added ${addedCount} games for ${playerName} (${converterState.playersParsed} players done)`, 'success');
-    updatePlayerInfo(playerName, playerTeam, position, records);
+    updatePlayerInfo(playerName, teamAbbr, position, records);
     updatePositionSummary();
 
     // Update stats
