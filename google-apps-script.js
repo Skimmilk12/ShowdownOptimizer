@@ -32,18 +32,41 @@ const SHEET_IDS = {
 // Handle POST requests from ShowdownOptimizer
 function doPost(e) {
   try {
+    // Log what we received for debugging
+    console.log('Received POST request');
+    console.log('e.parameter:', JSON.stringify(e.parameter));
+    console.log('e.postData:', e.postData ? JSON.stringify(e.postData) : 'null');
+
     // Parse the incoming data (could be JSON body or form data)
     let data;
 
-    if (e.postData && e.postData.contents) {
-      // Direct JSON body
-      data = JSON.parse(e.postData.contents);
-    } else if (e.parameter && e.parameter.data) {
-      // Form data with 'data' field
+    // Try form parameter first (most common with form submission)
+    if (e.parameter && e.parameter.data) {
+      console.log('Parsing from e.parameter.data');
       data = JSON.parse(e.parameter.data);
+    } else if (e.postData && e.postData.contents) {
+      console.log('Parsing from e.postData.contents');
+      // Check if it's form-urlencoded
+      if (e.postData.type === 'application/x-www-form-urlencoded') {
+        // Parse URL-encoded form data
+        const params = e.postData.contents.split('&');
+        for (let i = 0; i < params.length; i++) {
+          const pair = params[i].split('=');
+          if (pair[0] === 'data') {
+            data = JSON.parse(decodeURIComponent(pair[1]));
+            break;
+          }
+        }
+      } else {
+        // Direct JSON body
+        data = JSON.parse(e.postData.contents);
+      }
     } else {
-      return createResponse({ success: false, error: 'No data received' });
+      console.log('No data found in request');
+      return createResponse({ success: false, error: 'No data received. Check form submission.' });
     }
+
+    console.log('Parsed data:', JSON.stringify(data));
 
     const position = data.position;
     const records = data.records;
