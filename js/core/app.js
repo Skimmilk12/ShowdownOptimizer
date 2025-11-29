@@ -20,23 +20,38 @@ function selectSport(sportId) {
     } catch (e) {}
 
     // Hide sport selector
-    document.getElementById('sportSelector').style.display = 'none';
+    const sportSelector = document.getElementById('sportSelector');
+    if (sportSelector) sportSelector.style.display = 'none';
 
     // Hide all tab navs first
-    document.getElementById('maddenTabs').style.display = 'none';
-    document.getElementById('nbaTabs').style.display = 'none';
+    const maddenTabs = document.getElementById('maddenTabs');
+    const nbaTabs = document.getElementById('nbaTabs');
+    if (maddenTabs) maddenTabs.style.display = 'none';
+    if (nbaTabs) nbaTabs.style.display = 'none';
 
     // Hide all tab contents first
-    document.getElementById('showdownTab').style.display = 'none';
-    document.getElementById('showdownTab').classList.remove('active');
-    document.getElementById('classicTab').style.display = 'none';
-    document.getElementById('classicTab').classList.remove('active');
-    document.getElementById('playerdataTab').style.display = 'none';
-    document.getElementById('playerdataTab').classList.remove('active');
-    document.getElementById('converterTab').style.display = 'none';
-    document.getElementById('converterTab').classList.remove('active');
-
+    const showdownTab = document.getElementById('showdownTab');
+    const classicTab = document.getElementById('classicTab');
+    const playerdataTab = document.getElementById('playerdataTab');
+    const converterTab = document.getElementById('converterTab');
     const nbaTab = document.getElementById('nbaTab');
+
+    if (showdownTab) {
+        showdownTab.style.display = 'none';
+        showdownTab.classList.remove('active');
+    }
+    if (classicTab) {
+        classicTab.style.display = 'none';
+        classicTab.classList.remove('active');
+    }
+    if (playerdataTab) {
+        playerdataTab.style.display = 'none';
+        playerdataTab.classList.remove('active');
+    }
+    if (converterTab) {
+        converterTab.style.display = 'none';
+        converterTab.classList.remove('active');
+    }
     if (nbaTab) {
         nbaTab.style.display = 'none';
         nbaTab.classList.remove('active');
@@ -47,17 +62,19 @@ function selectSport(sportId) {
 
     if (sportId === 'madden') {
         // Show Madden tab nav
-        document.getElementById('maddenTabs').style.display = 'flex';
+        if (maddenTabs) maddenTabs.style.display = 'flex';
         // Show Madden Showdown tab content
-        document.getElementById('showdownTab').style.display = 'block';
-        document.getElementById('showdownTab').classList.add('active');
+        if (showdownTab) {
+            showdownTab.style.display = 'block';
+            showdownTab.classList.add('active');
+        }
         // Set first Madden tab as active
         const maddenShowdownTab = document.querySelector('#maddenTabs .main-tab[data-tab="showdown"]');
         if (maddenShowdownTab) maddenShowdownTab.classList.add('active');
         document.getElementById('headerTitle').textContent = 'Madden Optimizer';
     } else if (sportId === 'nba') {
         // Show NBA tab nav
-        document.getElementById('nbaTabs').style.display = 'flex';
+        if (nbaTabs) nbaTabs.style.display = 'flex';
         // Show NBA Showdown tab content
         if (nbaTab) {
             nbaTab.style.display = 'block';
@@ -86,22 +103,27 @@ function backToSportSelector() {
     } catch (e) {}
 
     // Show sport selector
-    document.getElementById('sportSelector').style.display = 'block';
+    const sportSelector = document.getElementById('sportSelector');
+    if (sportSelector) sportSelector.style.display = 'block';
 
     // Hide all tab navs
-    document.getElementById('maddenTabs').style.display = 'none';
-    document.getElementById('nbaTabs').style.display = 'none';
+    const maddenTabs = document.getElementById('maddenTabs');
+    const nbaTabs = document.getElementById('nbaTabs');
+    if (maddenTabs) maddenTabs.style.display = 'none';
+    if (nbaTabs) nbaTabs.style.display = 'none';
 
     // Hide all tab contents
-    document.getElementById('showdownTab').style.display = 'none';
-    document.getElementById('classicTab').style.display = 'none';
-    document.getElementById('playerdataTab').style.display = 'none';
-    document.getElementById('converterTab').style.display = 'none';
-
+    const showdownTab = document.getElementById('showdownTab');
+    const classicTab = document.getElementById('classicTab');
+    const playerdataTab = document.getElementById('playerdataTab');
+    const converterTab = document.getElementById('converterTab');
     const nbaTab = document.getElementById('nbaTab');
-    if (nbaTab) {
-        nbaTab.style.display = 'none';
-    }
+
+    if (showdownTab) showdownTab.style.display = 'none';
+    if (classicTab) classicTab.style.display = 'none';
+    if (playerdataTab) playerdataTab.style.display = 'none';
+    if (converterTab) converterTab.style.display = 'none';
+    if (nbaTab) nbaTab.style.display = 'none';
 
     // Reset header
     document.getElementById('headerTitle').textContent = 'Showdown Optimizer';
