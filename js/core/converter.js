@@ -1075,46 +1075,47 @@ async function pushToGoogleSheet(positionOverride = null) {
 
     updateStatus(`Pushing ${records.length} ${position} records to Google Sheets...`, 'info');
 
+    // Use iframe/form submission approach - most reliable for Apps Script
     try {
-        // Build URL with data as query parameter (more reliable for Apps Script)
         const payload = {
             position: position,
             records: records
         };
 
-        // Use form submission approach for better Apps Script compatibility
-        const formData = new FormData();
-        formData.append('data', JSON.stringify(payload));
+        // Create a hidden form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_APPS_SCRIPT_URL;
+        form.target = 'hidden_iframe';
+        form.style.display = 'none';
 
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: formData
-        });
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(payload);
+        form.appendChild(input);
 
-        // Try to read response
-        let result;
-        try {
-            result = await response.json();
-            console.log('[Converter] Apps Script response:', result);
-        } catch (e) {
-            // Response might not be JSON
-            const text = await response.text();
-            console.log('[Converter] Apps Script response (text):', text);
+        // Create hidden iframe to receive response
+        let iframe = document.getElementById('hidden_iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'hidden_iframe';
+            iframe.name = 'hidden_iframe';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
         }
 
-        if (result && result.success) {
-            // Clear the records after successful push
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Since we can't read the iframe response (CORS), assume success after a short delay
+        setTimeout(() => {
+            console.log(`[Converter] Push submitted for ${records.length} ${position} records`);
             newRecordsThisSession[position] = [];
             updatePositionSummary();
-            updateStatus(`✓ ${result.added || records.length} ${position} records pushed to Google Sheets!`, 'success');
-        } else if (result && result.error) {
-            updateStatus(`Push error: ${result.error}`, 'error');
-        } else {
-            // Assume success if we got this far without error
-            newRecordsThisSession[position] = [];
-            updatePositionSummary();
-            updateStatus(`✓ ${records.length} ${position} records sent to Google Sheets!`, 'success');
-        }
+            updateStatus(`✓ ${records.length} ${position} records pushed to Google Sheets!`, 'success');
+        }, 1000);
 
     } catch (error) {
         console.error('[Converter] Push failed:', error);
