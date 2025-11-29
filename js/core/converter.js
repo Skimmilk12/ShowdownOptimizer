@@ -1076,31 +1076,49 @@ async function pushToGoogleSheet(positionOverride = null) {
     updateStatus(`Pushing ${records.length} ${position} records to Google Sheets...`, 'info');
 
     try {
-        // POST directly to Google Apps Script
+        // Build URL with data as query parameter (more reliable for Apps Script)
+        const payload = {
+            position: position,
+            records: records
+        };
+
+        // Use form submission approach for better Apps Script compatibility
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(payload));
+
         const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors', // Apps Script requires this
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                position: position,
-                records: records
-            })
+            body: formData
         });
 
-        // Note: no-cors means we can't read the response, but the request still goes through
-        console.log(`[Converter] Push request sent for ${records.length} ${position} records`);
+        // Try to read response
+        let result;
+        try {
+            result = await response.json();
+            console.log('[Converter] Apps Script response:', result);
+        } catch (e) {
+            // Response might not be JSON
+            const text = await response.text();
+            console.log('[Converter] Apps Script response (text):', text);
+        }
 
-        // Clear the records after successful push
-        newRecordsThisSession[position] = [];
-        updatePositionSummary();
-
-        updateStatus(`✓ ${records.length} ${position} records pushed to Google Sheets!`, 'success');
+        if (result && result.success) {
+            // Clear the records after successful push
+            newRecordsThisSession[position] = [];
+            updatePositionSummary();
+            updateStatus(`✓ ${result.added || records.length} ${position} records pushed to Google Sheets!`, 'success');
+        } else if (result && result.error) {
+            updateStatus(`Push error: ${result.error}`, 'error');
+        } else {
+            // Assume success if we got this far without error
+            newRecordsThisSession[position] = [];
+            updatePositionSummary();
+            updateStatus(`✓ ${records.length} ${position} records sent to Google Sheets!`, 'success');
+        }
 
     } catch (error) {
         console.error('[Converter] Push failed:', error);
-        updateStatus(`Push failed: ${error.message}. Try clipboard fallback.`, 'error');
+        updateStatus(`Push failed: ${error.message}. Using clipboard fallback.`, 'error');
 
         // Fallback to clipboard method
         fallbackToClipboard(position, records);

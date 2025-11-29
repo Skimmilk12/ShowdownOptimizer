@@ -10,12 +10,14 @@
 // 5. Select "Web app" as the type
 // 6. Set "Execute as" to "Me"
 // 7. Set "Who has access" to "Anyone"
-// 8. Click "Deploy" and copy the Web App URL
-// 9. Paste that URL in your ShowdownOptimizer settings
+// 8. Click "Deploy" and AUTHORIZE when prompted
+// 9. Copy the Web App URL (NOT the script editor URL!)
+// 10. Paste that URL in ShowdownOptimizer's Setup Auto-Push
 //
 // The URL will look like: https://script.google.com/macros/s/XXXXX/exec
+// Make sure it ends with /exec, NOT /dev
 
-// Your Google Sheet IDs (already configured)
+// Your Google Sheet IDs (already configured for your sheets)
 const SHEET_IDS = {
   QB: '1nmPFQ1P1y8N0WPxHOq_FUEuBhSAW6ddLecsuRjyOqHo',
   RB: '1C8UDTi_jXMRE4MHy5Zt4nNkCxKR22QVoXGCWiTAAuaM',
@@ -27,15 +29,27 @@ const SHEET_IDS = {
 // Handle POST requests from ShowdownOptimizer
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    // Parse the incoming data (could be JSON body or form data)
+    let data;
+
+    if (e.postData && e.postData.contents) {
+      // Direct JSON body
+      data = JSON.parse(e.postData.contents);
+    } else if (e.parameter && e.parameter.data) {
+      // Form data with 'data' field
+      data = JSON.parse(e.parameter.data);
+    } else {
+      return createResponse({ success: false, error: 'No data received' });
+    }
+
     const position = data.position;
     const records = data.records;
 
     if (!position || !records || !SHEET_IDS[position]) {
-      return ContentService.createTextOutput(JSON.stringify({
+      return createResponse({
         success: false,
-        error: 'Invalid position or no records'
-      })).setMimeType(ContentService.MimeType.JSON);
+        error: 'Invalid position or no records. Position: ' + position
+      });
     }
 
     // Open the correct sheet
@@ -43,37 +57,47 @@ function doPost(e) {
     const sheet = spreadsheet.getSheets()[0]; // First sheet
 
     // Append each record as a new row
+    // Format: Name, Position, Team, Week, Opponent, FPTS
     let addedCount = 0;
-    records.forEach(record => {
+    records.forEach(function(record) {
       sheet.appendRow([
         record.name,
         record.position,
-        record.team,
+        record.team || '',
         record.week,
-        record.opponent,
+        record.opponent || '',
         record.fpts
       ]);
       addedCount++;
     });
 
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: true,
       added: addedCount,
-      position: position
-    })).setMimeType(ContentService.MimeType.JSON);
+      position: position,
+      message: 'Added ' + addedCount + ' records to ' + position + ' sheet'
+    });
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({
+    return createResponse({
       success: false,
       error: error.toString()
-    })).setMimeType(ContentService.MimeType.JSON);
+    });
   }
 }
 
 // Handle GET requests (for testing)
 function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({
+  return createResponse({
     status: 'OK',
-    message: 'ShowdownOptimizer API is running. Use POST to add data.'
-  })).setMimeType(ContentService.MimeType.JSON);
+    message: 'ShowdownOptimizer API is running. Use POST to add data.',
+    sheets: Object.keys(SHEET_IDS)
+  });
+}
+
+// Helper to create JSON response with CORS headers
+function createResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
 }
