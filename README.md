@@ -41,82 +41,61 @@ Access at: **https://skimmilk12.github.io/ShowdownOptimizer/**
 
 ```
 ShowdownOptimizer/
-├── index.html              # Main entry point
+├── index.html              # Main entry point (HTML markup only)
 ├── css/
-│   ├── core.css           # Base styles, theme, layout
-│   └── components.css     # Specialized components
+│   └── styles.css         # All styles (dark theme, Inter font)
 ├── js/
 │   ├── core/
-│   │   ├── app.js         # Main controller, sport selection
-│   │   ├── utils.js       # Shared utilities (CSV, formatting)
-│   │   ├── ui.js          # UI helpers (notifications, modals)
-│   │   └── optimizer.js   # Base optimizer class
-│   ├── sports/
-│   │   └── madden/
-│   │       ├── config.js  # Madden settings & rules
-│   │       ├── optimizer.js # Madden lineup generation
-│   │       └── ui.js      # Madden UI rendering
-│   └── features/          # (Future: correlations, entries)
-├── config/                # (Future: sport definitions)
-└── README.md
+│   │   ├── app.js         # Main init, tab navigation, Player Data
+│   │   ├── constants.js   # NFL teams, salary caps, slate mappings
+│   │   └── utils.js       # Shared utilities (CSV parsing, correlations)
+│   └── sports/
+│       └── madden/
+│           ├── showdown.js # Showdown optimizer (1 CPT + 5 FLEX)
+│           └── classic.js  # Classic optimizer (9-position roster)
+├── README.md
+└── DEVLOG.md
 ```
 
 ## Architecture
 
 ### Adding a New Sport
 
-1. Create config file: `js/sports/{sport}/config.js`
-```javascript
-const NBAConfig = {
-    id: 'nba',
-    name: 'NBA',
-    salaryCap: 50000,
-    rosterSize: 6,
-    showdown: {
-        positions: {
-            CPT: { count: 1, multiplier: 1.5 },
-            UTIL: { count: 5, multiplier: 1.0 }
-        }
-    },
-    // ... sport-specific settings
-};
-```
+1. Create sport folder: `js/sports/{sport}/`
 
-2. Create optimizer: `js/sports/{sport}/optimizer.js`
+2. Create showdown optimizer: `js/sports/{sport}/showdown.js`
 ```javascript
-class NBAShowdownOptimizer extends BaseOptimizer {
-    // Override parsePlayerData() for NBA CSV format
-    // Override generateSingleLineup() for NBA rules
+// Global state for this sport
+let players = [];
+let lineups = [];
+
+function initShowdownDOM() {
+    // Initialize DOM elements and event listeners
+}
+
+function parseCSV(csvText) {
+    // Parse DraftKings CSV format for this sport
+}
+
+function generateLineups() {
+    // Generate optimal lineups based on sport rules
 }
 ```
 
-3. Create UI: `js/sports/{sport}/ui.js`
-```javascript
-const NBAUI = {
-    init(optimizer) { /* ... */ },
-    renderUI() { /* ... */ }
-};
-```
+3. Create classic optimizer (if applicable): `js/sports/{sport}/classic.js`
 
-4. Register in `app.js`:
-```javascript
-sports: {
-    nba: {
-        config: () => window.NBAConfig,
-        optimizer: () => new NBAShowdownOptimizer(),
-        ui: () => window.NBAUI,
-        ready: true
-    }
-}
-```
+4. Add constants if needed: `js/core/constants.js`
+   - Team database, slate mappings, salary caps
 
-### Key Classes
+5. Add tab to `index.html` and initialize in `js/core/app.js`
 
-- **`BaseOptimizer`** - Core optimization logic (salary, diversity, exposure)
-- **`MaddenShowdownOptimizer`** - Extends base with Madden-specific rules
-- **`Utils`** - CSV parsing, formatting, storage helpers
-- **`UI`** - Notifications, modals, progress bars, tables
-- **`App`** - Main controller, sport selection, routing
+### Key Modules
+
+- **`constants.js`** - Shared configuration (teams, slates, salary caps)
+- **`utils.js`** - CSV parsing, correlation calculations
+- **`app.js`** - Main initialization, tab navigation, Player Data
+- **`showdown.js`** - Showdown optimizer (Captain + FLEX format)
+- **`classic.js`** - Classic optimizer (position-based roster)
 
 ## CSV Format
 
