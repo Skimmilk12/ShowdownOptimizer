@@ -109,6 +109,16 @@ function initConverterTab() {
 
     // Update position summary counts
     updatePositionSummary();
+
+    // Make position cards clickable to push data
+    document.querySelectorAll('.cv-pos-card.clickable').forEach(card => {
+        card.addEventListener('click', () => {
+            const pos = card.dataset.pos;
+            if (pos) {
+                pushToGoogleSheet(pos);
+            }
+        });
+    });
 }
 
 function populateTeamDropdown() {
@@ -220,23 +230,50 @@ function parseConverterData() {
     converterState.currentPosition = position;
     converterState.playersParsed++;
 
-    // Update UI
-    updateStatus(`Parsed ${records.length} games for ${playerName}`, 'success');
-    updatePlayerInfo(playerName, playerTeam, position, records);
-    renderPreviewTable(records);
+    // AUTO-ADD to player data immediately (no extra click needed!)
+    const newRecords = records.map(r => ({
+        name: r.player,
+        position: r.position,
+        team: r.team,
+        week: r.week,
+        opponent: r.opponent,
+        fpts: r.fpts
+    }));
 
-    // Enable add button
-    document.getElementById('cvAddToDataBtn').disabled = false;
+    // Add to playerGameData (avoiding duplicates)
+    const existingKeys = new Set(
+        playerGameData[position].map(r => `${r.name}|${r.week}`)
+    );
+
+    let addedCount = 0;
+    newRecords.forEach(record => {
+        const key = `${record.name}|${record.week}`;
+        if (!existingKeys.has(key)) {
+            playerGameData[position].push(record);
+            existingKeys.add(key);
+            addedCount++;
+        }
+    });
+
+    converterState.recordsAdded += addedCount;
+
+    // Update UI
+    updateStatus(`Added ${addedCount} games for ${playerName} (${converterState.playersParsed} players done)`, 'success');
+    updatePlayerInfo(playerName, playerTeam, position, records);
+    updatePositionSummary();
 
     // Update stats
     document.getElementById('cvPlayersParsed').textContent = converterState.playersParsed;
+    document.getElementById('cvRecordsAdded').textContent = converterState.recordsAdded;
     document.getElementById('cvCurrentPosition').textContent = position;
     document.getElementById('cvCurrentPlayer').textContent = playerName.length > 12 ? playerName.substring(0, 12) + '...' : playerName;
 
-    // Update manual fields with extracted values for verification
-    if (extractedInfo.name) document.getElementById('cvPlayerName').value = playerName;
-    if (extractedInfo.team) document.getElementById('cvPlayerTeam').value = playerTeam;
-    if (position) document.getElementById('cvPlayerPosition').value = position;
+    // Clear the paste area for next player
+    document.getElementById('cvPasteArea').value = '';
+    document.getElementById('cvPlayerName').value = '';
+
+    // Focus back on paste area for quick next paste
+    document.getElementById('cvPasteArea').focus();
 }
 
 // Extract player name, team, and position from pasted DraftKings data
@@ -795,10 +832,11 @@ function showConnectedSheet() {
     document.getElementById('cvSheetName').textContent = 'All position sheets configured';
 }
 
-async function pushToGoogleSheet() {
-    const position = converterState.currentPosition;
+async function pushToGoogleSheet(positionOverride = null) {
+    // Allow specifying position, or use current position
+    const position = positionOverride || converterState.currentPosition;
     if (!position) {
-        updateStatus('Parse data first to determine position', 'error');
+        updateStatus('Select a position first', 'error');
         return;
     }
 
@@ -808,28 +846,28 @@ async function pushToGoogleSheet() {
         return;
     }
 
-    if (converterState.parsedRecords.length === 0) {
-        updateStatus('No parsed data to push', 'error');
+    // Get ALL accumulated data for this position (not just last parsed player)
+    const records = playerGameData[position] || [];
+    if (records.length === 0) {
+        updateStatus(`No ${position} data to push`, 'error');
         return;
     }
 
-    updateStatus(`Pushing to ${position} Google Sheet...`, 'info');
+    updateStatus(`Pushing ${records.length} ${position} records...`, 'info');
 
-    // For now, we'll open the sheet in a new tab so user can paste manually
-    // Direct API write requires OAuth which is complex for a static site
+    // Open the sheet in a new tab
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
     window.open(sheetUrl, '_blank');
 
-    // Copy CSV data to clipboard
-    const records = converterState.parsedRecords;
-    let csvData = '';
+    // Build tab-separated data for pasting (ALL accumulated records for position)
+    let csvData = 'Player\tPosition\tTeam\tWeek\tOpponent\tFPTS\n'; // Header
     records.forEach(record => {
-        csvData += `${record.player}\t${record.position}\t${record.team || ''}\t${record.week}\t${record.opponent}\t${record.result}\t${record.fpts}\t${record.salary}\n`;
+        csvData += `${record.name}\t${record.position}\t${record.team || ''}\t${record.week}\t${record.opponent || ''}\t${record.fpts}\n`;
     });
 
     try {
         await navigator.clipboard.writeText(csvData);
-        updateStatus(`Data copied! Paste into ${position} sheet`, 'success');
+        updateStatus(`${records.length} ${position} records copied! Paste into sheet (Ctrl+V)`, 'success');
     } catch (e) {
         updateStatus(`Sheet opened. Manually copy data.`, 'info');
     }

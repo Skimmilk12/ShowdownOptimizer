@@ -2817,6 +2817,20 @@ tr:last-child td {
     background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), transparent);
 }
 
+.cv-pos-card.clickable {
+    cursor: pointer;
+}
+
+.cv-pos-card.clickable:hover {
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.cv-pos-card.clickable:active {
+    transform: translateY(0);
+}
+
 @media (max-width: 768px) {
     .cv-override-row {
         grid-template-columns: 1fr;

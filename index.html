@@ -1172,7 +1172,8 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                                 </svg>
                                 Parse Data
                             </button>
-                            <button class="btn btn-secondary" id="cvAddToDataBtn" disabled>
+                            <!-- Add to Player Data button hidden - auto-add on parse now -->
+                            <button class="btn btn-secondary" id="cvAddToDataBtn" style="display: none;" disabled>
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
@@ -1312,28 +1313,31 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                     </button>
                 </div>
                 <div class="card-body">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                        Click a position to push ALL its data to Google Sheet
+                    </p>
                     <div class="cv-position-summary" id="cvPositionSummary">
-                        <div class="cv-pos-card" data-pos="QB">
+                        <div class="cv-pos-card clickable" data-pos="QB" title="Click to push QB data to Google Sheet">
                             <div class="cv-pos-badge qb">QB</div>
                             <div class="cv-pos-count" id="cvQBCount">0</div>
                             <div class="cv-pos-label">records</div>
                         </div>
-                        <div class="cv-pos-card" data-pos="RB">
+                        <div class="cv-pos-card clickable" data-pos="RB" title="Click to push RB data to Google Sheet">
                             <div class="cv-pos-badge rb">RB</div>
                             <div class="cv-pos-count" id="cvRBCount">0</div>
                             <div class="cv-pos-label">records</div>
                         </div>
-                        <div class="cv-pos-card" data-pos="WR">
+                        <div class="cv-pos-card clickable" data-pos="WR" title="Click to push WR data to Google Sheet">
                             <div class="cv-pos-badge wr">WR</div>
                             <div class="cv-pos-count" id="cvWRCount">0</div>
                             <div class="cv-pos-label">records</div>
                         </div>
-                        <div class="cv-pos-card" data-pos="TE">
+                        <div class="cv-pos-card clickable" data-pos="TE" title="Click to push TE data to Google Sheet">
                             <div class="cv-pos-badge te">TE</div>
                             <div class="cv-pos-count" id="cvTECount">0</div>
                             <div class="cv-pos-label">records</div>
                         </div>
-                        <div class="cv-pos-card" data-pos="DST">
+                        <div class="cv-pos-card clickable" data-pos="DST" title="Click to push DST data to Google Sheet">
                             <div class="cv-pos-badge dst">DST</div>
                             <div class="cv-pos-count" id="cvDSTCount">0</div>
                             <div class="cv-pos-label">records</div>
