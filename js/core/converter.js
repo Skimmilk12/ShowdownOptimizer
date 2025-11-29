@@ -157,6 +157,12 @@ function initConverterTab() {
         cancelAppsScriptBtn.addEventListener('click', cancelAppsScriptSetup);
     }
 
+    // Push All button
+    const pushAllBtn = document.getElementById('cvPushAllBtn');
+    if (pushAllBtn) {
+        pushAllBtn.addEventListener('click', pushAllToGoogleSheets);
+    }
+
     // Show API status
     updateApiStatus();
 }
@@ -1155,6 +1161,93 @@ async function fallbackToClipboard(position, records) {
     } catch (e) {
         updateStatus('Sheet opened. Manually copy data.', 'info');
     }
+}
+
+// Push ALL positions at once
+async function pushAllToGoogleSheets() {
+    // Check if Apps Script URL is configured
+    if (!GOOGLE_APPS_SCRIPT_URL) {
+        updateStatus('Apps Script URL not set. Click "Setup Auto-Push" first.', 'error');
+        showAppsScriptSetup();
+        return;
+    }
+
+    const positions = ['QB', 'RB', 'WR', 'TE', 'DST'];
+    let totalRecords = 0;
+    let positionsPushed = [];
+
+    // Count total records across all positions
+    positions.forEach(pos => {
+        const count = newRecordsThisSession[pos]?.length || 0;
+        if (count > 0) {
+            totalRecords += count;
+            positionsPushed.push(pos);
+        }
+    });
+
+    if (totalRecords === 0) {
+        updateStatus('No new records to push. Parse some players first!', 'info');
+        return;
+    }
+
+    updateStatus(`Pushing ${totalRecords} records across ${positionsPushed.length} positions...`, 'info');
+
+    // Push each position sequentially (with small delay between)
+    let successCount = 0;
+    for (const pos of positionsPushed) {
+        const records = newRecordsThisSession[pos] || [];
+        if (records.length === 0) continue;
+
+        try {
+            const payload = {
+                position: pos,
+                records: records
+            };
+
+            // Create a hidden form and submit it
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = GOOGLE_APPS_SCRIPT_URL;
+            form.target = 'hidden_iframe';
+            form.style.display = 'none';
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'data';
+            input.value = JSON.stringify(payload);
+            form.appendChild(input);
+
+            // Create hidden iframe if not exists
+            let iframe = document.getElementById('hidden_iframe');
+            if (!iframe) {
+                iframe = document.createElement('iframe');
+                iframe.id = 'hidden_iframe';
+                iframe.name = 'hidden_iframe';
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+            }
+
+            document.body.appendChild(form);
+            form.submit();
+            document.body.removeChild(form);
+
+            console.log(`[Converter] Pushed ${records.length} ${pos} records`);
+            successCount += records.length;
+
+            // Clear the records for this position
+            newRecordsThisSession[pos] = [];
+
+            // Small delay between positions to avoid overwhelming the server
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+        } catch (error) {
+            console.error(`[Converter] Failed to push ${pos}:`, error);
+        }
+    }
+
+    // Update UI
+    updatePositionSummary();
+    updateStatus(`✓ Pushed ${successCount} records to ${positionsPushed.join(', ')} sheets!`, 'success');
 }
 
 // Toggle the Apps Script URL setup panel
