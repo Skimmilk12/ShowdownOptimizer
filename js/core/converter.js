@@ -388,8 +388,12 @@ function parseConverterData() {
             nextIndex++;
         }
 
-        // Skip stat columns
-        nextIndex += statCount;
+        // Capture stat columns (don't skip them!)
+        const stats = [];
+        for (let s = 0; s < statCount && nextIndex < lines.length; s++) {
+            stats.push(lines[nextIndex] || '0');
+            nextIndex++;
+        }
 
         records.push({
             player: playerName,
@@ -398,8 +402,10 @@ function parseConverterData() {
             week: week,
             opponent: opponent,
             result: result,
+            stats: stats,  // Array of stat values
             fpts: fpts,
-            salary: salary
+            salary: salary,
+            salaryFormatted: salaryStr  // Keep original format like "$6,700"
         });
 
         // Move to next game entry
@@ -433,13 +439,18 @@ function parseConverterData() {
     records.forEach(record => {
         const key = `${record.player}|${record.week}`;
         if (!existingKeys.has(key)) {
+            // Keep ALL data for the record
             const newRecord = {
                 name: record.player,
                 position: record.position,
                 team: record.team,
                 week: record.week,
                 opponent: record.opponent,
-                fpts: record.fpts
+                result: record.result,
+                stats: record.stats,  // All stat columns
+                fpts: record.fpts,
+                salary: record.salary,
+                salaryFormatted: record.salaryFormatted
             };
             playerGameData[position].push(newRecord);
             // Also track as NEW for this session (so we only push new ones)
