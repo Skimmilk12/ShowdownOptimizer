@@ -10,20 +10,68 @@
 <body>
     <!-- Header -->
     <header class="header">
-        <div class="logo">
+        <div class="logo" id="headerLogo" onclick="backToSportSelector()" style="cursor: pointer;">
             <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
-            <h1>NFL Madden Optimizer</h1>
-            <span>DraftKings</span>
+            <h1 id="headerTitle">Showdown Optimizer</h1>
+            <span id="headerBadge">Select Sport</span>
         </div>
         <div class="header-right">
             <div id="fileStatus" style="font-size: 0.85rem; color: var(--text-muted);">No file loaded</div>
         </div>
     </header>
 
-    <!-- Main Tab Navigation -->
-    <nav class="main-tabs">
+    <!-- Sport Selector (shown first) -->
+    <div class="sport-selector" id="sportSelector">
+        <h1>Showdown Optimizer</h1>
+        <p>Select a sport to begin</p>
+        <div class="sport-cards">
+            <div class="sport-card" data-sport="madden" onclick="selectSport('madden')">
+                <div class="sport-card-icon">🎮</div>
+                <div class="sport-card-name">Madden</div>
+                <div class="sport-card-status ready">Ready</div>
+            </div>
+            <div class="sport-card disabled" data-sport="nfl">
+                <div class="sport-card-icon">🏈</div>
+                <div class="sport-card-name">NFL</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="nba">
+                <div class="sport-card-icon">🏀</div>
+                <div class="sport-card-name">NBA</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="mlb">
+                <div class="sport-card-icon">⚾</div>
+                <div class="sport-card-name">MLB</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="nhl">
+                <div class="sport-card-icon">🏒</div>
+                <div class="sport-card-name">NHL</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="nascar">
+                <div class="sport-card-icon">🏎️</div>
+                <div class="sport-card-name">NASCAR</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="golf">
+                <div class="sport-card-icon">⛳</div>
+                <div class="sport-card-name">Golf</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+            <div class="sport-card disabled" data-sport="tennis">
+                <div class="sport-card-icon">🎾</div>
+                <div class="sport-card-name">Tennis</div>
+                <div class="sport-card-status">Coming Soon</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Tab Navigation (hidden until sport selected) -->
+    <nav class="main-tabs" id="mainTabs" style="display: none;">
         <div class="main-tab active" data-tab="showdown">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -44,8 +92,8 @@
         </div>
     </nav>
 
-    <!-- Showdown Tab Content -->
-    <div class="tab-content active" id="showdownTab">
+    <!-- Showdown Tab Content (hidden until sport selected) -->
+    <div class="tab-content" id="showdownTab" style="display: none;">
 
     <!-- Main Container -->
     <div class="container">
@@ -458,8 +506,8 @@
     </div>
     </div> <!-- End Showdown Tab -->
 
-    <!-- Classic Tab Content -->
-    <div class="tab-content" id="classicTab">
+    <!-- Classic Tab Content (hidden until sport selected) -->
+    <div class="tab-content" id="classicTab" style="display: none;">
         <div class="container">
             <!-- Stats Row -->
             <div class="stats-row">
@@ -809,8 +857,8 @@
         </div>
     </div>
 
-    <!-- Player Data Tab Content -->
-    <div class="tab-content" id="playerdataTab">
+    <!-- Player Data Tab Content (hidden until sport selected) -->
+    <div class="tab-content" id="playerdataTab" style="display: none;">
         <div class="container">
             <!-- Stats Row for Player Data -->
             <div class="stats-row">
@@ -859,6 +907,31 @@
                 </div>
                 <div class="card-body">
                     <div class="player-data-grid">
+                        <!-- ALL Upload Card -->
+                        <div class="pd-upload-card all-card" id="pdAllCard">
+                            <div class="pd-upload-header">
+                                <div class="pd-position-badge all">ALL</div>
+                                <span>All Positions</span>
+                            </div>
+                            <div class="pd-upload-zone" id="pdAllZone">
+                                <input type="file" id="pdAllInput" accept=".csv" multiple style="display: none;">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <span>Ctrl+Click to select all files</span>
+                                <span class="upload-hint">Files auto-detected by name</span>
+                            </div>
+                            <div class="pd-upload-status" id="pdAllStatus">
+                                <div class="all-files-status">
+                                    <div class="file-indicator" data-pos="QB" title="QB"></div>
+                                    <div class="file-indicator" data-pos="RB" title="RB"></div>
+                                    <div class="file-indicator" data-pos="WR" title="WR"></div>
+                                    <div class="file-indicator" data-pos="TE" title="TE"></div>
+                                    <div class="file-indicator" data-pos="DST" title="DST"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- QB Upload -->
                         <div class="pd-upload-card" id="pdQBCard">
                             <div class="pd-upload-header">

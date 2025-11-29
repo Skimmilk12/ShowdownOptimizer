@@ -2,6 +2,69 @@
 // MAIN APPLICATION - Initialization and shared functionality
 // ==========================================
 
+// Current sport
+let currentSport = null;
+
+// Sport selector functions
+function selectSport(sportId) {
+    if (sportId !== 'madden') {
+        // Other sports not ready yet
+        return;
+    }
+
+    currentSport = sportId;
+
+    // Save to localStorage
+    try {
+        localStorage.setItem('selectedSport', sportId);
+    } catch (e) {}
+
+    // Hide sport selector
+    document.getElementById('sportSelector').style.display = 'none';
+
+    // Show main tabs and content
+    document.getElementById('mainTabs').style.display = 'flex';
+    document.getElementById('showdownTab').style.display = 'block';
+    document.getElementById('showdownTab').classList.add('active');
+    document.getElementById('classicTab').style.display = 'none';
+    document.getElementById('playerdataTab').style.display = 'none';
+
+    // Update header
+    document.getElementById('headerTitle').textContent = 'NFL Madden Optimizer';
+    document.getElementById('headerBadge').textContent = 'DraftKings';
+}
+
+function backToSportSelector() {
+    currentSport = null;
+
+    // Clear from localStorage
+    try {
+        localStorage.removeItem('selectedSport');
+    } catch (e) {}
+
+    // Show sport selector
+    document.getElementById('sportSelector').style.display = 'block';
+
+    // Hide main tabs and all content
+    document.getElementById('mainTabs').style.display = 'none';
+    document.getElementById('showdownTab').style.display = 'none';
+    document.getElementById('classicTab').style.display = 'none';
+    document.getElementById('playerdataTab').style.display = 'none';
+
+    // Reset header
+    document.getElementById('headerTitle').textContent = 'Showdown Optimizer';
+    document.getElementById('headerBadge').textContent = 'Select Sport';
+}
+
+function checkSavedSport() {
+    try {
+        const savedSport = localStorage.getItem('selectedSport');
+        if (savedSport === 'madden') {
+            selectSport('madden');
+        }
+    } catch (e) {}
+}
+
 // Player Data Global State
 const playerGameData = {
     QB: [],
@@ -31,11 +94,17 @@ function initTabNavigation() {
             document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
 
-            // Show corresponding content
+            // Hide all tab content and show only the selected one
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
+                content.style.display = 'none';
             });
-            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            const selectedTab = document.getElementById(tabName + 'Tab');
+            if (selectedTab) {
+                selectedTab.style.display = 'block';
+                selectedTab.classList.add('active');
+            }
         });
     });
 }
@@ -44,7 +113,115 @@ function initTabNavigation() {
 // PLAYER DATA TAB FUNCTIONALITY
 // ==========================================
 
+// Detect position from filename
+function detectPositionFromFilename(filename) {
+    const name = filename.toUpperCase();
+    if (name.includes('QB') || name.includes('QUARTERBACK')) return 'QB';
+    if (name.includes('RB') || name.includes('RUNNING')) return 'RB';
+    if (name.includes('WR') || name.includes('WIDE') || name.includes('RECEIVER')) return 'WR';
+    if (name.includes('TE') || name.includes('TIGHT')) return 'TE';
+    if (name.includes('DST') || name.includes('DEF') || name.includes('DEFENSE')) return 'DST';
+    return null;
+}
+
+// Handle ALL files upload
+async function handleAllPlayerDataUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    let loadedCount = 0;
+
+    for (const file of files) {
+        const position = detectPositionFromFilename(file.name);
+        if (!position) {
+            console.warn(`Could not detect position from filename: ${file.name}`);
+            continue;
+        }
+
+        try {
+            const text = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+
+            parsePlayerDataCSV(text, position);
+            updatePlayerDataUI(position, file.name);
+            loadedCount++;
+
+            // Update indicator
+            const indicator = document.querySelector(`.file-indicator[data-pos="${position}"]`);
+            if (indicator) indicator.classList.add('loaded');
+        } catch (err) {
+            console.error(`Error loading ${file.name}:`, err);
+        }
+    }
+
+    // Check if all loaded
+    checkAllFilesLoaded();
+    updateAllCardStatus();
+
+    if (loadedCount > 0) {
+        console.log(`Loaded ${loadedCount} position files`);
+    }
+
+    event.target.value = '';
+}
+
+// Update the ALL card status
+function updateAllCardStatus() {
+    const allLoaded = positions.every(pos => playerGameData[pos].length > 0);
+    const allCard = document.getElementById('pdAllCard');
+
+    if (allCard) {
+        if (allLoaded) {
+            allCard.classList.add('all-loaded');
+        } else {
+            allCard.classList.remove('all-loaded');
+        }
+    }
+
+    // Update indicators
+    positions.forEach(pos => {
+        const indicator = document.querySelector(`.file-indicator[data-pos="${pos}"]`);
+        if (indicator) {
+            if (playerGameData[pos].length > 0) {
+                indicator.classList.add('loaded');
+            } else {
+                indicator.classList.remove('loaded');
+            }
+        }
+    });
+}
+
 function initPlayerDataTab() {
+    // Setup ALL upload handler
+    const allZone = document.getElementById('pdAllZone');
+    const allInput = document.getElementById('pdAllInput');
+
+    if (allZone && allInput) {
+        allZone.addEventListener('click', () => allInput.click());
+
+        allZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            allZone.classList.add('dragover');
+        });
+
+        allZone.addEventListener('dragleave', () => {
+            allZone.classList.remove('dragover');
+        });
+
+        allZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            allZone.classList.remove('dragover');
+            // Create a fake event with the files
+            handleAllPlayerDataUpload({ target: { files: e.dataTransfer.files } });
+        });
+
+        allInput.addEventListener('change', handleAllPlayerDataUpload);
+    }
+
     // Setup upload handlers for each position
     positions.forEach(pos => {
         const zone = document.getElementById(`pd${pos}Zone`);
@@ -731,4 +908,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Load stored correlations on page load
     loadCorrelationsFromStorage();
+
+    // Check if a sport was previously selected
+    checkSavedSport();
 });
