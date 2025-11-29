@@ -1193,18 +1193,21 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                         </div>
                     </div>
                     <div class="card-body">
-                        <!-- Player Input Section - Always Visible -->
+                        <!-- Player Info Display (shown after parsing) -->
+                        <div class="converter-player-info" id="cvPlayerInfo" style="display: none;"></div>
+
+                        <!-- Manual Override Section - Only shown if auto-detect fails -->
                         <div class="cv-manual-override" id="cvManualOverride">
-                            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Enter Player Details First</h4>
+                            <h4 style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Manual Override (if auto-detect fails)</h4>
                             <div class="cv-override-row">
                                 <div class="cv-override-field">
-                                    <label>Player Name *</label>
-                                    <input type="text" id="cvPlayerName" placeholder="e.g. Josh Allen">
+                                    <label>Player Name</label>
+                                    <input type="text" id="cvPlayerName" placeholder="Auto-detected">
                                 </div>
                                 <div class="cv-override-field">
                                     <label>Team</label>
                                     <select id="cvPlayerTeam">
-                                        <option value="">Select Team</option>
+                                        <option value="">Auto-detect</option>
                                     </select>
                                 </div>
                                 <div class="cv-override-field">
@@ -1220,9 +1223,6 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Player Info Display (shown after parsing) -->
-                        <div class="converter-player-info" id="cvPlayerInfo" style="display: none;"></div>
                     </div>
                 </div>
             </div>
@@ -1258,33 +1258,27 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                         </svg>
                         Google Sheets Sync
                     </div>
-                    <span class="cv-sheets-status" id="cvSheetsStatus">Not Connected</span>
+                    <span class="cv-sheets-status connected" id="cvSheetsStatus">Connected</span>
                 </div>
                 <div class="card-body">
-                    <div class="cv-sheets-setup" id="cvSheetsSetup">
+                    <div class="cv-sheets-setup" id="cvSheetsSetup" style="display: none;">
                         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
-                            Connect to a Google Sheet to automatically sync your player data. The sheet must be set to "Anyone with link can edit".
+                            Sheets are pre-configured for each position.
                         </p>
-                        <div class="cv-sheets-input-row">
-                            <input type="text" id="cvSheetId" class="cv-sheet-input" placeholder="Paste your Google Sheet ID here...">
-                            <button class="btn btn-primary" id="cvConnectSheetBtn">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                                </svg>
-                                Connect
-                            </button>
-                        </div>
-                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
-                            Sheet ID is the long string in your Google Sheets URL: docs.google.com/spreadsheets/d/<strong>[SHEET_ID]</strong>/edit
-                        </p>
+                        <input type="hidden" id="cvSheetId" value="">
+                        <button class="btn btn-primary" id="cvConnectSheetBtn">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                            </svg>
+                            Reconnect
+                        </button>
                     </div>
-                    <div class="cv-sheets-connected" id="cvSheetsConnected" style="display: none;">
+                    <div class="cv-sheets-connected" id="cvSheetsConnected">
                         <div class="cv-sheets-info">
-                            <span class="cv-sheets-name" id="cvSheetName">Player Data Sheet</span>
-                            <button class="btn btn-secondary btn-sm" id="cvDisconnectSheetBtn">Disconnect</button>
+                            <span class="cv-sheets-name" id="cvSheetName">5 position sheets configured (QB, RB, WR, TE, DST)</span>
                         </div>
                         <div class="cv-sheets-actions">
-                            <button class="btn btn-primary" id="cvSyncToSheetBtn" disabled>
+                            <button class="btn btn-primary" id="cvSyncToSheetBtn">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>

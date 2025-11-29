@@ -9,9 +9,20 @@ const converterState = {
     currentPosition: null,
     playersParsed: 0,
     recordsAdded: 0,
-    sheetId: null,
     sheetConnected: false
 };
+
+// Google Sheet IDs per position (user's sheets)
+const POSITION_SHEET_IDS = {
+    QB: '1nmPFQ1P1y8N0WPxHOq_FUEuBhSAW6ddLecsuRjyOqHo',
+    RB: '1C8UDTi_jXMRE4MHy5Zt4nNkCxKR22QVoXGCWiTAAuaM',
+    WR: '1MXTV7mLSLywoslITmHrbjcIKBK2c99RVdteDHxA9dv8',
+    TE: '1hRlW5XhqKeSzWE1-E0RHKwUdt99fnUM2zzwk3QDborQ',
+    DST: '1RNKJDGegnWt7G7Pmxo6kwHZGTIvvDIyOaTp9racjol8'
+};
+
+// NFL Team abbreviations for detection
+const NFL_TEAM_ABBRS = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WAS'];
 
 // Position-specific stat columns (based on DFS God converter)
 const POSITION_STATS = {
@@ -138,29 +149,47 @@ function parseConverterData() {
         return;
     }
 
-    // Parse header to detect position and column indices
-    const headerLine = lines[0];
-    const headers = parseTabOrSpaceLine(headerLine);
+    // Extract player info from the pasted data (DraftKings format)
+    const extractedInfo = extractPlayerInfo(lines);
+
+    // Get manual overrides if provided
+    const manualName = document.getElementById('cvPlayerName').value.trim();
+    const manualTeam = document.getElementById('cvPlayerTeam').value;
+    const manualPosition = document.getElementById('cvPlayerPosition').value;
+
+    // Use extracted info, falling back to manual input
+    const playerName = manualName || extractedInfo.name;
+    const playerTeam = manualTeam || extractedInfo.team;
+
+    // Find the header line (contains "Week" and "FPTS")
+    let headerLineIndex = -1;
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+        const lineUpper = lines[i].toUpperCase();
+        if ((lineUpper.includes('WEEK') || lineUpper.includes('WK')) &&
+            (lineUpper.includes('FPTS') || lineUpper.includes('PTS') || lineUpper.includes('SALARY'))) {
+            headerLineIndex = i;
+            break;
+        }
+    }
+
+    if (headerLineIndex === -1) {
+        updateStatus('Could not find game log header (Week/FPTS)', 'error');
+        return;
+    }
+
+    const headers = parseTabOrSpaceLine(lines[headerLineIndex]);
 
     // Detect position from headers
     const detectedPosition = detectPositionFromHeaders(headers);
-
-    // Get player info from manual override or prompt
-    const playerName = document.getElementById('cvPlayerName').value.trim();
-    const playerTeam = document.getElementById('cvPlayerTeam').value;
-    const manualPosition = document.getElementById('cvPlayerPosition').value;
-
-    const position = manualPosition || detectedPosition;
+    const position = manualPosition || detectedPosition || extractedInfo.position;
 
     if (!position) {
         updateStatus('Could not detect position. Please select manually.', 'error');
-        document.getElementById('cvManualOverride').style.display = 'block';
         return;
     }
 
     if (!playerName) {
-        updateStatus('Please enter the player name', 'error');
-        document.getElementById('cvManualOverride').style.display = 'block';
+        updateStatus('Could not detect player name. Please enter manually.', 'error');
         document.getElementById('cvPlayerName').focus();
         return;
     }
@@ -168,9 +197,9 @@ function parseConverterData() {
     // Find column indices
     const columnIndices = findColumnIndices(headers);
 
-    // Parse data rows
+    // Parse data rows (after header)
     const records = [];
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = headerLineIndex + 1; i < lines.length; i++) {
         const row = parseTabOrSpaceLine(lines[i]);
         if (row.length < 3) continue;
 
@@ -192,7 +221,7 @@ function parseConverterData() {
     converterState.playersParsed++;
 
     // Update UI
-    updateStatus(`Parsed ${records.length} games`, 'success');
+    updateStatus(`Parsed ${records.length} games for ${playerName}`, 'success');
     updatePlayerInfo(playerName, playerTeam, position, records);
     renderPreviewTable(records);
 
@@ -203,6 +232,93 @@ function parseConverterData() {
     document.getElementById('cvPlayersParsed').textContent = converterState.playersParsed;
     document.getElementById('cvCurrentPosition').textContent = position;
     document.getElementById('cvCurrentPlayer').textContent = playerName.length > 12 ? playerName.substring(0, 12) + '...' : playerName;
+
+    // Update manual fields with extracted values for verification
+    if (extractedInfo.name) document.getElementById('cvPlayerName').value = playerName;
+    if (extractedInfo.team) document.getElementById('cvPlayerTeam').value = playerTeam;
+    if (position) document.getElementById('cvPlayerPosition').value = position;
+}
+
+// Extract player name, team, and position from pasted DraftKings data
+function extractPlayerInfo(lines) {
+    const result = { name: null, team: null, position: null };
+
+    // Look at the first few lines before the game log header
+    for (let i = 0; i < Math.min(lines.length, 8); i++) {
+        const line = lines[i].trim();
+        const lineUpper = line.toUpperCase();
+
+        // Skip if this looks like a header row
+        if (lineUpper.includes('WEEK') && (lineUpper.includes('FPTS') || lineUpper.includes('SALARY'))) {
+            break;
+        }
+
+        // Skip if this looks like a data row (starts with a number)
+        if (/^\d+\s/.test(line)) {
+            continue;
+        }
+
+        // Look for team abbreviation and position pattern: "BUF · QB" or "BUF - QB" or "BUF QB"
+        const teamPosMatch = line.match(/\b(ARI|ATL|BAL|BUF|CAR|CHI|CIN|CLE|DAL|DEN|DET|GB|HOU|IND|JAX|KC|LAC|LAR|LV|MIA|MIN|NE|NO|NYG|NYJ|PHI|PIT|SEA|SF|TB|TEN|WAS)\b\s*[·\-\s]\s*(QB|RB|WR|TE|K|DEF|DST)/i);
+        if (teamPosMatch) {
+            result.team = teamPosMatch[1].toUpperCase();
+            let pos = teamPosMatch[2].toUpperCase();
+            if (pos === 'DEF') pos = 'DST';
+            result.position = pos;
+            continue;
+        }
+
+        // Look for just team abbreviation
+        const teamMatch = line.match(/\b(ARI|ATL|BAL|BUF|CAR|CHI|CIN|CLE|DAL|DEN|DET|GB|HOU|IND|JAX|KC|LAC|LAR|LV|MIA|MIN|NE|NO|NYG|NYJ|PHI|PIT|SEA|SF|TB|TEN|WAS)\b/i);
+        if (teamMatch && !result.team) {
+            result.team = teamMatch[1].toUpperCase();
+        }
+
+        // Look for position abbreviation
+        const posMatch = line.match(/\b(QB|RB|WR|TE|K|DEF|DST)\b/i);
+        if (posMatch && !result.position) {
+            let pos = posMatch[1].toUpperCase();
+            if (pos === 'DEF') pos = 'DST';
+            result.position = pos;
+        }
+
+        // If line looks like a player name (2-4 words, no numbers, not a header)
+        // and doesn't contain position/team indicators we already found
+        if (!result.name && line.length > 3 && line.length < 50) {
+            const words = line.split(/\s+/);
+            // Player name is typically 2-4 words
+            if (words.length >= 2 && words.length <= 4) {
+                // Check it's not a header or contains stats keywords
+                const isNotHeader = !lineUpper.includes('WEEK') &&
+                                   !lineUpper.includes('FPTS') &&
+                                   !lineUpper.includes('SALARY') &&
+                                   !lineUpper.includes('MATCHUP') &&
+                                   !lineUpper.includes('PASS') &&
+                                   !lineUpper.includes('RUSH') &&
+                                   !lineUpper.includes('REC');
+                // Check words look like names (start with capital, mostly letters)
+                const looksLikeName = words.every(w => /^[A-Z][a-zA-Z'-]+$/.test(w) || /^[A-Z]+$/.test(w));
+
+                if (isNotHeader && looksLikeName) {
+                    // Remove team/position if they're part of this line
+                    let namePart = line;
+                    if (result.team) {
+                        namePart = namePart.replace(new RegExp('\\b' + result.team + '\\b', 'gi'), '');
+                    }
+                    if (result.position) {
+                        namePart = namePart.replace(new RegExp('\\b' + result.position + '\\b', 'gi'), '');
+                    }
+                    namePart = namePart.replace(/[·\-]/g, '').trim();
+
+                    if (namePart.length > 3) {
+                        result.name = namePart;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 function parseTabOrSpaceLine(line) {
@@ -645,51 +761,21 @@ function downloadCSV(content, filename) {
 // ==========================================
 
 function loadSheetConnection() {
-    try {
-        const savedSheetId = localStorage.getItem('converterSheetId');
-        if (savedSheetId) {
-            converterState.sheetId = savedSheetId;
-            converterState.sheetConnected = true;
-            showConnectedSheet();
-        }
-    } catch (e) {
-        console.error('Failed to load sheet connection:', e);
+    // Check if we have pre-configured sheets
+    if (POSITION_SHEET_IDS.QB) {
+        converterState.sheetConnected = true;
+        showConnectedSheet();
     }
 }
 
 function connectGoogleSheet() {
-    const sheetIdInput = document.getElementById('cvSheetId');
-    const sheetId = sheetIdInput.value.trim();
-
-    if (!sheetId) {
-        updateStatus('Please enter a Sheet ID', 'error');
-        return;
-    }
-
-    // Validate sheet ID format (44 characters, alphanumeric + dashes/underscores)
-    if (!/^[a-zA-Z0-9_-]{30,50}$/.test(sheetId)) {
-        updateStatus('Invalid Sheet ID format', 'error');
-        return;
-    }
-
-    // Save to localStorage
-    try {
-        localStorage.setItem('converterSheetId', sheetId);
-        converterState.sheetId = sheetId;
-        converterState.sheetConnected = true;
-        showConnectedSheet();
-        updateStatus('Sheet connected!', 'success');
-    } catch (e) {
-        updateStatus('Failed to save connection', 'error');
-    }
+    // Sheets are pre-configured, just show connected state
+    converterState.sheetConnected = true;
+    showConnectedSheet();
+    updateStatus('Sheets connected!', 'success');
 }
 
 function disconnectGoogleSheet() {
-    try {
-        localStorage.removeItem('converterSheetId');
-    } catch (e) {}
-
-    converterState.sheetId = null;
     converterState.sheetConnected = false;
 
     // Show setup UI
@@ -697,9 +783,8 @@ function disconnectGoogleSheet() {
     document.getElementById('cvSheetsConnected').style.display = 'none';
     document.getElementById('cvSheetsStatus').textContent = 'Not Connected';
     document.getElementById('cvSheetsStatus').classList.remove('connected');
-    document.getElementById('cvSheetId').value = '';
 
-    updateStatus('Sheet disconnected', 'info');
+    updateStatus('Sheets disconnected', 'info');
 }
 
 function showConnectedSheet() {
@@ -707,136 +792,108 @@ function showConnectedSheet() {
     document.getElementById('cvSheetsConnected').style.display = 'block';
     document.getElementById('cvSheetsStatus').textContent = 'Connected';
     document.getElementById('cvSheetsStatus').classList.add('connected');
-    document.getElementById('cvSheetName').textContent = `Sheet ID: ${converterState.sheetId.substring(0, 12)}...`;
+    document.getElementById('cvSheetName').textContent = 'All position sheets configured';
 }
 
 async function pushToGoogleSheet() {
-    if (!converterState.sheetConnected || !converterState.sheetId) {
-        updateStatus('No sheet connected', 'error');
-        return;
-    }
-
     const position = converterState.currentPosition;
-    if (!position || typeof playerGameData === 'undefined') {
-        updateStatus('No data to push', 'error');
+    if (!position) {
+        updateStatus('Parse data first to determine position', 'error');
         return;
     }
 
-    const records = playerGameData[position];
-    if (!records || records.length === 0) {
-        updateStatus(`No ${position} data to push`, 'error');
+    const sheetId = POSITION_SHEET_IDS[position];
+    if (!sheetId) {
+        updateStatus(`No sheet configured for ${position}`, 'error');
         return;
     }
 
-    updateStatus('Pushing to Google Sheets...', 'info');
+    if (converterState.parsedRecords.length === 0) {
+        updateStatus('No parsed data to push', 'error');
+        return;
+    }
+
+    updateStatus(`Pushing to ${position} Google Sheet...`, 'info');
+
+    // For now, we'll open the sheet in a new tab so user can paste manually
+    // Direct API write requires OAuth which is complex for a static site
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
+    window.open(sheetUrl, '_blank');
+
+    // Copy CSV data to clipboard
+    const records = converterState.parsedRecords;
+    let csvData = '';
+    records.forEach(record => {
+        csvData += `${record.player}\t${record.position}\t${record.team || ''}\t${record.week}\t${record.opponent}\t${record.result}\t${record.fpts}\t${record.salary}\n`;
+    });
 
     try {
-        // Build data for Google Sheets API
-        const values = [
-            ['Player', 'Position', 'Team', 'Week', 'Opponent', 'FPTS']
-        ];
-
-        records.forEach(record => {
-            values.push([
-                record.name,
-                record.position,
-                record.team || '',
-                record.week,
-                record.opponent || '',
-                record.fpts
-            ]);
-        });
-
-        // Use Google Sheets API (public edit)
-        // Format: https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={SHEET_NAME}
-        // For writing, we use a different approach - append via form
-
-        // Note: Direct writing to Google Sheets requires OAuth or using Google Apps Script
-        // For a public sheet with "Anyone can edit", we can use the Sheets API v4
-        const sheetName = position;
-        const range = `${sheetName}!A1`;
-
-        const response = await fetch(
-            `https://sheets.googleapis.com/v4/spreadsheets/${converterState.sheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=YOUR_API_KEY`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ values: values.slice(1) }) // Skip header for append
-            }
-        );
-
-        if (response.ok) {
-            updateStatus(`Pushed ${records.length} records to ${position} sheet`, 'success');
-        } else {
-            // Fallback: offer CSV download
-            updateStatus('API unavailable. Use Export instead.', 'error');
-        }
-    } catch (error) {
-        console.error('Push to sheet failed:', error);
-        updateStatus('Push failed. Try exporting CSV instead.', 'error');
+        await navigator.clipboard.writeText(csvData);
+        updateStatus(`Data copied! Paste into ${position} sheet`, 'success');
+    } catch (e) {
+        updateStatus(`Sheet opened. Manually copy data.`, 'info');
     }
 }
 
 async function pullFromGoogleSheet() {
-    if (!converterState.sheetConnected || !converterState.sheetId) {
-        updateStatus('No sheet connected', 'error');
-        return;
-    }
+    updateStatus('Pulling from all Google Sheets...', 'info');
 
-    updateStatus('Pulling from Google Sheets...', 'info');
+    let totalPulled = 0;
+    const positions = ['QB', 'RB', 'WR', 'TE', 'DST'];
 
-    try {
-        // Try to fetch each position tab
-        const positions = ['QB', 'RB', 'WR', 'TE', 'DST'];
-        let totalPulled = 0;
+    for (const pos of positions) {
+        const sheetId = POSITION_SHEET_IDS[pos];
+        if (!sheetId) continue;
 
-        for (const pos of positions) {
-            try {
-                // Use public CSV export URL
-                const url = `https://docs.google.com/spreadsheets/d/${converterState.sheetId}/gviz/tq?tqx=out:csv&sheet=${pos}`;
-                const response = await fetch(url);
+        try {
+            // Use public CSV export URL
+            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+            const response = await fetch(url);
 
-                if (response.ok) {
-                    const csvText = await response.text();
-                    const records = parseGoogleSheetCSV(csvText, pos);
+            if (response.ok) {
+                const csvText = await response.text();
+                const records = parseGoogleSheetCSV(csvText, pos);
 
-                    if (records.length > 0) {
-                        // Merge with existing data
-                        const existingKeys = new Set(
-                            playerGameData[pos].map(r => `${r.name}|${r.week}`)
-                        );
+                if (records.length > 0) {
+                    // Merge with existing data
+                    const existingKeys = new Set(
+                        playerGameData[pos].map(r => `${r.name}|${r.week}`)
+                    );
 
-                        records.forEach(record => {
-                            const key = `${record.name}|${record.week}`;
-                            if (!existingKeys.has(key)) {
-                                playerGameData[pos].push(record);
-                                existingKeys.add(key);
-                                totalPulled++;
-                            }
-                        });
+                    let posAdded = 0;
+                    records.forEach(record => {
+                        const key = `${record.name}|${record.week}`;
+                        if (!existingKeys.has(key)) {
+                            playerGameData[pos].push(record);
+                            existingKeys.add(key);
+                            posAdded++;
+                        }
+                    });
+
+                    if (posAdded > 0) {
+                        console.log(`Pulled ${posAdded} new ${pos} records`);
+                        totalPulled += posAdded;
                     }
                 }
-            } catch (e) {
-                console.warn(`Failed to pull ${pos}:`, e);
             }
+        } catch (e) {
+            console.warn(`Failed to pull ${pos}:`, e);
         }
+    }
 
-        if (totalPulled > 0) {
-            updateStatus(`Pulled ${totalPulled} new records`, 'success');
-            updatePositionSummary();
+    if (totalPulled > 0) {
+        updateStatus(`Pulled ${totalPulled} new records from sheets`, 'success');
+        updatePositionSummary();
 
-            // Update Player Data tab
-            if (typeof updatePlayerDataStats === 'function') {
-                updatePlayerDataStats();
-            }
-        } else {
-            updateStatus('No new records found', 'info');
+        // Update Player Data tab
+        if (typeof updatePlayerDataStats === 'function') {
+            updatePlayerDataStats();
         }
-    } catch (error) {
-        console.error('Pull from sheet failed:', error);
-        updateStatus('Pull failed. Check sheet permissions.', 'error');
+        if (typeof checkAllFilesLoaded === 'function') {
+            checkAllFilesLoaded();
+        }
+    } else {
+        updateStatus('No new records found in sheets', 'info');
     }
 }
 
