@@ -1,26 +1,10 @@
 // ===========================================
-// GOOGLE APPS SCRIPT - Deploy this in Google
+// GOOGLE APPS SCRIPT - DEBUG VERSION
 // ===========================================
-//
-// SETUP INSTRUCTIONS:
-// 1. Go to https://script.google.com/
-// 2. Click "New Project"
-// 3. Delete the default code and paste ALL of this code
-// 4. Click "Deploy" > "New deployment"
-// 5. Select "Web app" as the type
-// 6. Set "Execute as" to "Me"
-// 7. Set "Who has access" to "Anyone"
-// 8. Click "Deploy" and AUTHORIZE when prompted
-// 9. Copy the Web App URL (NOT the script editor URL!)
-// 10. Paste that URL in ShowdownOptimizer's Setup Auto-Push
-//
-// IMPORTANT: After updating this code, you must create a NEW deployment!
-// Go to Deploy > New deployment (not "Manage deployments")
-//
-// The URL will look like: https://script.google.com/macros/s/XXXXX/exec
-// Make sure it ends with /exec, NOT /dev
+// Copy this ENTIRE code into your Apps Script project
+// Then: Deploy > New deployment > Web app > Execute as Me, Anyone > Deploy
+// Copy the NEW URL to ShowdownOptimizer
 
-// Your Google Sheet IDs (already configured for your sheets)
 const SHEET_IDS = {
   QB: '1nmPFQ1P1y8N0WPxHOq_FUEuBhSAW6ddLecsuRjyOqHo',
   RB: '1C8UDTi_jXMRE4MHy5Zt4nNkCxKR22QVoXGCWiTAAuaM',
@@ -29,167 +13,133 @@ const SHEET_IDS = {
   DST: '1RNKJDGegnWt7G7Pmxo6kwHZGTIvvDIyOaTp9racjol8'
 };
 
-// Handle POST requests from ShowdownOptimizer
-function doPost(e) {
+// Create a log sheet to help debug
+function logToSheet(message) {
   try {
-    // Log what we received for debugging
-    console.log('Received POST request');
-    console.log('e.parameter:', JSON.stringify(e.parameter));
-    console.log('e.postData:', e.postData ? JSON.stringify(e.postData) : 'null');
+    var logSheet = SpreadsheetApp.openById(SHEET_IDS.QB);
+    var sheet = logSheet.getSheetByName('DebugLog');
+    if (!sheet) {
+      sheet = logSheet.insertSheet('DebugLog');
+    }
+    sheet.appendRow([new Date(), message]);
+  } catch (e) {
+    // Can't log, just continue
+  }
+}
 
-    // Parse the incoming data (could be JSON body or form data)
-    let data;
+function doPost(e) {
+  logToSheet('doPost called');
 
-    // Try form parameter first (most common with form submission)
-    if (e.parameter && e.parameter.data) {
-      console.log('Parsing from e.parameter.data');
-      data = JSON.parse(e.parameter.data);
-    } else if (e.postData && e.postData.contents) {
-      console.log('Parsing from e.postData.contents');
-      // Check if it's form-urlencoded
-      if (e.postData.type === 'application/x-www-form-urlencoded') {
-        // Parse URL-encoded form data
-        const params = e.postData.contents.split('&');
-        for (let i = 0; i < params.length; i++) {
-          const pair = params[i].split('=');
-          if (pair[0] === 'data') {
-            data = JSON.parse(decodeURIComponent(pair[1]));
-            break;
-          }
-        }
+  try {
+    // Check what we received
+    if (!e) {
+      logToSheet('ERROR: No event object');
+      return ContentService.createTextOutput('No event object');
+    }
+
+    logToSheet('e.parameter keys: ' + Object.keys(e.parameter || {}).join(', '));
+
+    // Get the data from form submission
+    var jsonData = e.parameter ? e.parameter.data : null;
+
+    if (!jsonData) {
+      // Try postData for raw POST body
+      if (e.postData && e.postData.contents) {
+        jsonData = e.postData.contents;
+        logToSheet('Using postData.contents');
       } else {
-        // Direct JSON body
-        data = JSON.parse(e.postData.contents);
+        logToSheet('ERROR: No data in parameter or postData');
+        return ContentService.createTextOutput('No data parameter');
       }
     } else {
-      console.log('No data found in request');
-      return createResponse({ success: false, error: 'No data received. Check form submission.' });
+      logToSheet('Using e.parameter.data');
     }
 
-    console.log('Parsed data:', JSON.stringify(data));
+    logToSheet('Raw data length: ' + (jsonData ? jsonData.length : 0));
 
-    const position = data.position;
-    const records = data.records;
-
-    if (!position || !records || !SHEET_IDS[position]) {
-      return createResponse({
-        success: false,
-        error: 'Invalid position or no records. Position: ' + position
-      });
+    var data;
+    try {
+      data = JSON.parse(jsonData);
+    } catch (parseError) {
+      logToSheet('ERROR parsing JSON: ' + parseError.toString());
+      logToSheet('First 200 chars: ' + (jsonData || '').substring(0, 200));
+      return ContentService.createTextOutput('JSON parse error: ' + parseError.toString());
     }
 
-    // Open the correct sheet
-    const spreadsheet = SpreadsheetApp.openById(SHEET_IDS[position]);
-    const sheet = spreadsheet.getSheets()[0]; // First sheet
+    var position = data.position;
+    var records = data.records;
 
-    // Get existing data to find where to insert
-    const existingData = sheet.getDataRange().getValues();
+    logToSheet('Position: ' + position + ', Records: ' + (records ? records.length : 0));
 
-    let addedCount = 0;
+    if (!position || !SHEET_IDS[position]) {
+      logToSheet('ERROR: Invalid position: ' + position);
+      return ContentService.createTextOutput('Invalid position: ' + position);
+    }
 
-    // Process each record
-    records.forEach(function(record) {
-      // Build the full row with all columns
-      // Format: Name, Position, Team, Week, Opponent, Result, [stats...], FPTS, Salary
-      const row = [
-        record.name,
-        record.position,
+    if (!records || records.length === 0) {
+      logToSheet('ERROR: No records in payload');
+      return ContentService.createTextOutput('No records');
+    }
+
+    // Open the sheet
+    logToSheet('Opening sheet: ' + SHEET_IDS[position]);
+    var spreadsheet = SpreadsheetApp.openById(SHEET_IDS[position]);
+    var sheet = spreadsheet.getSheets()[0];
+    logToSheet('Sheet opened: ' + sheet.getName());
+
+    // Append each record
+    var count = 0;
+    for (var i = 0; i < records.length; i++) {
+      var record = records[i];
+
+      // Build row: Name, Position, Team, Week, Opponent, Result, [stats], FPTS, Salary
+      var row = [
+        record.name || '',
+        record.position || '',
         record.team || '',
-        record.week,
+        record.week || '',
         record.opponent || '',
         record.result || ''
       ];
 
-      // Add all stats (if they exist)
-      if (record.stats && Array.isArray(record.stats)) {
-        record.stats.forEach(function(stat) {
-          row.push(stat);
-        });
+      // Add stats if present
+      if (record.stats && record.stats.length > 0) {
+        for (var j = 0; j < record.stats.length; j++) {
+          row.push(record.stats[j]);
+        }
       }
 
       // Add FPTS and Salary at the end
-      row.push(record.fpts);
-      row.push(record.salaryFormatted || ('$' + record.salary));
+      row.push(record.fpts || 0);
+      row.push(record.salaryFormatted || ('$' + (record.salary || 0)));
 
-      // Find the right position to insert (after header, grouped by player name)
-      let insertRow = findInsertPosition(sheet, record.name, record.week);
+      logToSheet('Appending row ' + i + ': ' + row.slice(0, 5).join(', ') + '...');
+      sheet.appendRow(row);
+      count++;
+    }
 
-      // Insert the row
-      sheet.insertRowAfter(insertRow);
-      sheet.getRange(insertRow + 1, 1, 1, row.length).setValues([row]);
-
-      addedCount++;
-    });
-
-    return createResponse({
-      success: true,
-      added: addedCount,
-      position: position,
-      message: 'Added ' + addedCount + ' records to ' + position + ' sheet'
-    });
+    logToSheet('SUCCESS: Added ' + count + ' rows to ' + position);
+    return ContentService.createTextOutput('Added ' + count + ' rows to ' + position);
 
   } catch (error) {
-    return createResponse({
-      success: false,
-      error: error.toString()
-    });
+    logToSheet('ERROR: ' + error.toString());
+    return ContentService.createTextOutput('Error: ' + error.toString());
   }
 }
 
-// Find the row position to insert a new record
-// Groups records by player name and sorts by week (descending - highest week first)
-function findInsertPosition(sheet, playerName, newWeek) {
-  const data = sheet.getDataRange().getValues();
-
-  // Start after header row (row 1)
-  let insertAfterRow = 1;
-  let foundPlayer = false;
-  let lastPlayerRow = 1;
-
-  // Find where this player's records are (or where they should go alphabetically)
-  for (let i = 1; i < data.length; i++) {
-    const rowPlayerName = data[i][0]; // Column A = Player name
-    const rowWeek = parseInt(data[i][3]) || 0; // Column D = Week
-
-    if (rowPlayerName === playerName) {
-      foundPlayer = true;
-      lastPlayerRow = i + 1; // +1 because sheets are 1-indexed
-
-      // If this row has a lower week number, insert before it
-      if (rowWeek < newWeek) {
-        return i; // Insert at this position (pushes this row down)
-      }
-    } else if (foundPlayer) {
-      // We've passed all of this player's rows
-      // Insert at the end of their section
-      return lastPlayerRow;
-    } else if (rowPlayerName > playerName && !foundPlayer) {
-      // This player should go before this row alphabetically
-      return i;
-    }
-  }
-
-  // If player was found but we're at the end, insert after last row
-  if (foundPlayer) {
-    return lastPlayerRow;
-  }
-
-  // If player not found at all, add at the end
-  return data.length;
-}
-
-// Handle GET requests (for testing)
 function doGet(e) {
-  return createResponse({
-    status: 'OK',
-    message: 'ShowdownOptimizer API is running. Use POST to add data.',
-    sheets: Object.keys(SHEET_IDS)
-  });
+  logToSheet('doGet called');
+  return ContentService.createTextOutput('API is running. POST data to add rows.');
 }
 
-// Helper to create JSON response with CORS headers
-function createResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+// Test function - run this manually to verify sheet access
+function testSheetAccess() {
+  try {
+    var spreadsheet = SpreadsheetApp.openById(SHEET_IDS.QB);
+    var sheet = spreadsheet.getSheets()[0];
+    sheet.appendRow(['TEST', 'ROW', 'AT', new Date().toISOString()]);
+    Logger.log('Successfully wrote test row to QB sheet');
+  } catch (e) {
+    Logger.log('Error: ' + e.toString());
+  }
 }
