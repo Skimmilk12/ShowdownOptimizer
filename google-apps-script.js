@@ -1,5 +1,5 @@
 // ===========================================
-// GOOGLE APPS SCRIPT - DEBUG VERSION
+// GOOGLE APPS SCRIPT - INSERT AT CORRECT POSITION
 // ===========================================
 // Copy this ENTIRE code into your Apps Script project
 // Then: Deploy > New deployment > Web app > Execute as Me, Anyone > Deploy
@@ -13,91 +13,56 @@ const SHEET_IDS = {
   DST: '1RNKJDGegnWt7G7Pmxo6kwHZGTIvvDIyOaTp9racjol8'
 };
 
-// Create a log sheet to help debug
-function logToSheet(message) {
-  try {
-    var logSheet = SpreadsheetApp.openById(SHEET_IDS.QB);
-    var sheet = logSheet.getSheetByName('DebugLog');
-    if (!sheet) {
-      sheet = logSheet.insertSheet('DebugLog');
-    }
-    sheet.appendRow([new Date(), message]);
-  } catch (e) {
-    // Can't log, just continue
-  }
-}
-
 function doPost(e) {
-  logToSheet('doPost called');
-
   try {
-    // Check what we received
-    if (!e) {
-      logToSheet('ERROR: No event object');
-      return ContentService.createTextOutput('No event object');
-    }
-
-    logToSheet('e.parameter keys: ' + Object.keys(e.parameter || {}).join(', '));
-
     // Get the data from form submission
     var jsonData = e.parameter ? e.parameter.data : null;
 
     if (!jsonData) {
-      // Try postData for raw POST body
       if (e.postData && e.postData.contents) {
         jsonData = e.postData.contents;
-        logToSheet('Using postData.contents');
       } else {
-        logToSheet('ERROR: No data in parameter or postData');
         return ContentService.createTextOutput('No data parameter');
       }
-    } else {
-      logToSheet('Using e.parameter.data');
     }
 
-    logToSheet('Raw data length: ' + (jsonData ? jsonData.length : 0));
-
-    var data;
-    try {
-      data = JSON.parse(jsonData);
-    } catch (parseError) {
-      logToSheet('ERROR parsing JSON: ' + parseError.toString());
-      logToSheet('First 200 chars: ' + (jsonData || '').substring(0, 200));
-      return ContentService.createTextOutput('JSON parse error: ' + parseError.toString());
-    }
-
+    var data = JSON.parse(jsonData);
     var position = data.position;
     var records = data.records;
 
-    logToSheet('Position: ' + position + ', Records: ' + (records ? records.length : 0));
-
     if (!position || !SHEET_IDS[position]) {
-      logToSheet('ERROR: Invalid position: ' + position);
       return ContentService.createTextOutput('Invalid position: ' + position);
     }
 
     if (!records || records.length === 0) {
-      logToSheet('ERROR: No records in payload');
       return ContentService.createTextOutput('No records');
     }
 
     // Open the sheet
-    logToSheet('Opening sheet: ' + SHEET_IDS[position]);
     var spreadsheet = SpreadsheetApp.openById(SHEET_IDS[position]);
     var sheet = spreadsheet.getSheets()[0];
-    logToSheet('Sheet opened: ' + sheet.getName());
 
-    // Append each record
+    // Get all existing data to find where to insert
+    var allData = sheet.getDataRange().getValues();
+
+    // Sort records by week number DESCENDING (highest week first)
+    // This ensures when we insert them one by one, they end up in correct order
+    records.sort(function(a, b) {
+      return (b.week || 0) - (a.week || 0);
+    });
+
     var count = 0;
     for (var i = 0; i < records.length; i++) {
       var record = records[i];
+      var playerName = record.name || '';
+      var weekNum = record.week || 0;
 
       // Build row: Name, Position, Team, Week, Opponent, Result, [stats], FPTS, Salary
       var row = [
-        record.name || '',
+        playerName,
         record.position || '',
         record.team || '',
-        record.week || '',
+        weekNum,
         record.opponent || '',
         record.result || ''
       ];
@@ -113,22 +78,73 @@ function doPost(e) {
       row.push(record.fpts || 0);
       row.push(record.salaryFormatted || ('$' + (record.salary || 0)));
 
-      logToSheet('Appending row ' + i + ': ' + row.slice(0, 5).join(', ') + '...');
-      sheet.appendRow(row);
+      // Find the correct position to insert this row
+      var insertRow = findInsertPosition(allData, playerName, weekNum);
+
+      if (insertRow > 0) {
+        // Insert a new row at this position and set values
+        sheet.insertRowBefore(insertRow);
+        sheet.getRange(insertRow, 1, 1, row.length).setValues([row]);
+
+        // Update allData to reflect the insertion (for subsequent records)
+        allData.splice(insertRow - 1, 0, row);
+      } else {
+        // Player not found, append at end
+        sheet.appendRow(row);
+        allData.push(row);
+      }
+
       count++;
     }
 
-    logToSheet('SUCCESS: Added ' + count + ' rows to ' + position);
     return ContentService.createTextOutput('Added ' + count + ' rows to ' + position);
 
   } catch (error) {
-    logToSheet('ERROR: ' + error.toString());
     return ContentService.createTextOutput('Error: ' + error.toString());
   }
 }
 
+// Find the correct row to insert a new record
+// Returns the 1-based row number where we should insert
+// Games are sorted by week DESCENDING (highest week at top of player's section)
+function findInsertPosition(allData, playerName, weekNum) {
+  var playerFirstRow = -1;
+  var playerLastRow = -1;
+
+  // Find the player's section (first and last row)
+  for (var i = 0; i < allData.length; i++) {
+    var rowName = allData[i][0];
+    if (rowName === playerName) {
+      if (playerFirstRow === -1) {
+        playerFirstRow = i;
+      }
+      playerLastRow = i;
+    } else if (playerFirstRow !== -1 && rowName !== playerName && rowName !== '') {
+      // We've passed the player's section
+      break;
+    }
+  }
+
+  if (playerFirstRow === -1) {
+    // Player not found in sheet
+    return -1;
+  }
+
+  // Now find where in the player's section this week should go
+  // Weeks are sorted descending (highest first)
+  for (var i = playerFirstRow; i <= playerLastRow; i++) {
+    var existingWeek = parseInt(allData[i][3]) || 0;  // Column D = Week
+    if (weekNum > existingWeek) {
+      // Insert here (before this row)
+      return i + 1;  // +1 for 1-based row index
+    }
+  }
+
+  // This week is lower than all existing weeks, insert after last row
+  return playerLastRow + 2;  // +2 because 1-based and after
+}
+
 function doGet(e) {
-  logToSheet('doGet called');
   return ContentService.createTextOutput('API is running. POST data to add rows.');
 }
 

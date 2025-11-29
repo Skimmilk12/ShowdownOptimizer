@@ -405,7 +405,7 @@ function parseConverterData() {
             stats: stats,  // Array of stat values
             fpts: fpts,
             salary: salary,
-            salaryFormatted: salaryStr  // Keep original format like "$6,700"
+            salaryFormatted: salaryStr.replace(/,/g, '')  // "$6,700" becomes "$6700" (no comma to avoid sheet issues)
         });
 
         // Move to next game entry
