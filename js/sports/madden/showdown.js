@@ -2,31 +2,36 @@
 // MADDEN SHOWDOWN OPTIMIZER
 // ==========================================
 
-// Detect slate number from game info using hour-range based detection
-// Game info format: "ATL@TB 11/25/2025 12:00PM ET" or "SF@MIA 11/24/2025 1:00PM ET"
+// Extract game matchup from game info (e.g., "ATL@TB" from "ATL@TB 11/25/2025 12:00PM ET")
+function extractGameMatchup(gameInfo) {
+    if (!gameInfo) return null;
+    const match = gameInfo.match(/([A-Z]{2,3})@([A-Z]{2,3})/i);
+    if (match) {
+        return `${match[1].toUpperCase()}@${match[2].toUpperCase()}`;
+    }
+    return null;
+}
+
+// Map of game matchups to slate numbers (dynamically assigned)
+let gameToSlateMap = {};
+let nextAvailableSlate = 1;
+
+// Get or assign a slate number for a game matchup
+function getSlateForGame(gameMatchup) {
+    if (!gameMatchup) return 1;
+
+    if (!gameToSlateMap[gameMatchup]) {
+        gameToSlateMap[gameMatchup] = nextAvailableSlate;
+        nextAvailableSlate++;
+    }
+    return gameToSlateMap[gameMatchup];
+}
+
+// Detect slate number from game info - based on GAME MATCHUP, not time
+// Each unique game (e.g., ATL@TB) gets its own slate
 function detectSlateNumberFromGameInfo(gameInfo) {
-    if (!gameInfo) return 1;
-
-    // Extract time from game info (e.g., "ATL@TB 11/25/2025 12:00PM ET")
-    const timeMatch = gameInfo.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-    if (!timeMatch) return 1;
-
-    let hour = parseInt(timeMatch[1]);
-    const isPM = timeMatch[3].toUpperCase() === 'PM';
-
-    // Convert to 24-hour format
-    if (isPM && hour !== 12) hour += 12;
-    if (!isPM && hour === 12) hour = 0;
-
-    // Map to slate number based on hour ranges
-    if (hour >= 11 && hour < 14) return 1;  // 11 AM - 2 PM -> Slate 1 (12:00)
-    if (hour >= 14 && hour < 16) return 2;  // 2 PM - 4 PM -> Slate 2 (2:00)
-    if (hour >= 16 && hour < 18) return 3;  // 4 PM - 6 PM -> Slate 3 (4:00)
-    if (hour >= 18 && hour < 20) return 4;  // 6 PM - 8 PM -> Slate 4 (6:00)
-    if (hour >= 20 && hour < 22) return 5;  // 8 PM - 10 PM -> Slate 5 (8:00)
-    if (hour >= 22 || hour < 11) return 6;  // 10 PM+ -> Slate 6 (10:00)
-
-    return 1;
+    const matchup = extractGameMatchup(gameInfo);
+    return getSlateForGame(matchup);
 }
 
 // Showdown Global State
@@ -305,10 +310,6 @@ function updateSalaryDisplay() {
 // Track loaded files for display
 let loadedFiles = [];
 
-// Track game matchups to slate assignments (for multi-game support)
-let gameMatchupToSlate = {};
-let nextSlateNum = 1;
-
 function handleMultipleFiles(files) {
     let filesProcessed = 0;
     const totalFiles = files.length;
@@ -318,8 +319,8 @@ function handleMultipleFiles(files) {
         slates = {};
         entries = [];
         players = [];
-        gameMatchupToSlate = {};
-        nextSlateNum = 1;
+        gameToSlateMap = {};
+        nextAvailableSlate = 1;
     }
 
     files.forEach(file => {
@@ -401,8 +402,8 @@ function resetAllUploads() {
     lineups = [];
     loadedFiles = [];
     currentSlate = null;
-    gameMatchupToSlate = {};
-    nextSlateNum = 1;
+    gameToSlateMap = {};
+    nextAvailableSlate = 1;
 
     // Reset upload zone to initial state
     uploadZone.innerHTML = `
@@ -633,6 +634,8 @@ function parseCSV(csvData) {
     entries = [];
     players = [];
     loadedFiles = [];
+    gameToSlateMap = {};
+    nextAvailableSlate = 1;
 
     let positionColIdx = -1;
     let playerPoolStartRow = -1;
