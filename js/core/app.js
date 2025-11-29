@@ -22,15 +22,19 @@ function selectSport(sportId) {
     // Hide sport selector
     document.getElementById('sportSelector').style.display = 'none';
 
-    // Show main tabs
-    document.getElementById('mainTabs').style.display = 'flex';
+    // Hide all tab navs first
+    document.getElementById('maddenTabs').style.display = 'none';
+    document.getElementById('nbaTabs').style.display = 'none';
 
     // Hide all tab contents first
     document.getElementById('showdownTab').style.display = 'none';
     document.getElementById('showdownTab').classList.remove('active');
     document.getElementById('classicTab').style.display = 'none';
+    document.getElementById('classicTab').classList.remove('active');
     document.getElementById('playerdataTab').style.display = 'none';
+    document.getElementById('playerdataTab').classList.remove('active');
     document.getElementById('converterTab').style.display = 'none';
+    document.getElementById('converterTab').classList.remove('active');
 
     const nbaTab = document.getElementById('nbaTab');
     if (nbaTab) {
@@ -38,22 +42,30 @@ function selectSport(sportId) {
         nbaTab.classList.remove('active');
     }
 
-    // Update main tab active states
+    // Reset all tab active states
     document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
 
     if (sportId === 'madden') {
-        // Show Madden Showdown tab
+        // Show Madden tab nav
+        document.getElementById('maddenTabs').style.display = 'flex';
+        // Show Madden Showdown tab content
         document.getElementById('showdownTab').style.display = 'block';
         document.getElementById('showdownTab').classList.add('active');
-        document.querySelector('.main-tab[data-tab="showdown"]').classList.add('active');
-        document.getElementById('headerTitle').textContent = 'NFL Madden Optimizer';
+        // Set first Madden tab as active
+        const maddenShowdownTab = document.querySelector('#maddenTabs .main-tab[data-tab="showdown"]');
+        if (maddenShowdownTab) maddenShowdownTab.classList.add('active');
+        document.getElementById('headerTitle').textContent = 'Madden Optimizer';
     } else if (sportId === 'nba') {
-        // Show NBA Showdown tab
+        // Show NBA tab nav
+        document.getElementById('nbaTabs').style.display = 'flex';
+        // Show NBA Showdown tab content
         if (nbaTab) {
             nbaTab.style.display = 'block';
             nbaTab.classList.add('active');
         }
-        document.querySelector('.main-tab[data-tab="nba"]').classList.add('active');
+        // Set first NBA tab as active
+        const nbaShowdownTab = document.querySelector('#nbaTabs .main-tab[data-tab="nba"]');
+        if (nbaShowdownTab) nbaShowdownTab.classList.add('active');
         document.getElementById('headerTitle').textContent = 'NBA Showdown Optimizer';
 
         // Initialize NBA if needed
@@ -76,8 +88,11 @@ function backToSportSelector() {
     // Show sport selector
     document.getElementById('sportSelector').style.display = 'block';
 
-    // Hide main tabs and all content
-    document.getElementById('mainTabs').style.display = 'none';
+    // Hide all tab navs
+    document.getElementById('maddenTabs').style.display = 'none';
+    document.getElementById('nbaTabs').style.display = 'none';
+
+    // Hide all tab contents
     document.getElementById('showdownTab').style.display = 'none';
     document.getElementById('classicTab').style.display = 'none';
     document.getElementById('playerdataTab').style.display = 'none';
@@ -126,17 +141,37 @@ function initTabNavigation() {
     document.querySelectorAll('.main-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.tab;
+            const sport = tab.dataset.sport;
+            const parentNav = tab.closest('.main-tabs');
 
-            // Update active tab
-            document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+            // Update active tab only within the same nav
+            parentNav.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
 
-            // Hide all tab content and show only the selected one
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-                content.style.display = 'none';
-            });
+            // Define which tabs belong to which sport
+            const maddenTabs = ['showdown', 'classic', 'playerdata', 'converter'];
+            const nbaTabs = ['nba'];
 
+            // Hide only tabs related to current sport
+            if (sport === 'madden') {
+                maddenTabs.forEach(t => {
+                    const content = document.getElementById(t + 'Tab');
+                    if (content) {
+                        content.classList.remove('active');
+                        content.style.display = 'none';
+                    }
+                });
+            } else if (sport === 'nba') {
+                nbaTabs.forEach(t => {
+                    const content = document.getElementById(t + 'Tab');
+                    if (content) {
+                        content.classList.remove('active');
+                        content.style.display = 'none';
+                    }
+                });
+            }
+
+            // Show selected tab content
             const selectedTab = document.getElementById(tabName + 'Tab');
             if (selectedTab) {
                 selectedTab.style.display = 'block';
