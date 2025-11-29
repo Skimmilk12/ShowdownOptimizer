@@ -58,16 +58,16 @@ function initShowdownEventListeners() {
     uploadZone.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadZone.classList.remove('dragover');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
-        if (files.length > 0) {
-            handleMultipleFiles(files);
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith('.csv')) {
+            handleFile(file);
         }
     });
 
     csvInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files).filter(f => f.name.endsWith('.csv'));
-        if (files.length > 0) {
-            handleMultipleFiles(files);
+        const file = e.target.files[0];
+        if (file) {
+            handleFile(file);
         }
         csvInput.value = '';
     });
@@ -275,343 +275,29 @@ function updateSalaryDisplay() {
     range.style.width = (rightPercent - leftPercent) + '%';
 }
 
-// Track loaded files for display
-let loadedFiles = [];
-
-function handleMultipleFiles(files) {
-    let filesProcessed = 0;
-    const totalFiles = files.length;
-
-    // Reset slates only if this is a fresh upload (no files loaded yet)
-    if (loadedFiles.length === 0) {
-        slates = {};
-        entries = [];
-        players = [];
-    }
-
-    files.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const csvData = e.target.result;
-            parseCSVMerge(csvData, file.name);
-            loadedFiles.push(file.name);
-            filesProcessed++;
-
-            if (filesProcessed === totalFiles) {
-                // All files processed, update UI
-                updateUploadZoneUI();
-
-                // Select first available slate
-                for (let i = 1; i <= 6; i++) {
-                    if (slates[i] && slates[i].players.length > 0) {
-                        selectSlate(i);
-                        break;
-                    }
-                }
-            }
-        };
-        reader.readAsText(file);
-    });
-}
-
 function handleFile(file) {
-    handleMultipleFiles([file]);
-}
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const csvData = e.target.result;
+        parseCSV(csvData);
 
-function updateUploadZoneUI() {
-    // Calculate totals across all slates
-    let totalEntries = 0;
-    let totalPlayers = 0;
-    Object.values(slates).forEach(slate => {
-        totalEntries += slate.entries.length;
-        totalPlayers += slate.players.length;
-    });
+        uploadZone.innerHTML = `
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--accent-primary);">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h3 style="color: var(--accent-primary);">✓ ${file.name}</h3>
+            <p>${entries.length} entries, ${players.length} players loaded</p>
+            <input type="file" id="csvInput" accept=".csv">
+        `;
 
-    const loadedSlateCount = Object.keys(slates).filter(k => slates[k].players.length > 0).length;
-
-    uploadZone.innerHTML = `
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--accent-primary);">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <h3 style="color: var(--accent-primary);">✓ ${loadedFiles[loadedFiles.length - 1]}</h3>
-        <p>${totalEntries} entries, ${totalPlayers} players loaded</p>
-        <p style="font-size: 0.8em; opacity: 0.7;">${loadedSlateCount} game slot${loadedSlateCount !== 1 ? 's' : ''} • Drop more CSVs to add</p>
-        <p style="font-size: 0.75em; margin-top: 8px;"><a href="#" id="resetUploadsLink" style="color: var(--accent-secondary);">Reset & Start Fresh</a></p>
-        <input type="file" id="csvInput" accept=".csv" multiple>
-    `;
-
-    const newInput = document.getElementById('csvInput');
-    newInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files).filter(f => f.name.endsWith('.csv'));
-        if (files.length > 0) handleMultipleFiles(files);
-        newInput.value = '';
-    });
-
-    // Reset link handler
-    document.getElementById('resetUploadsLink').addEventListener('click', (e) => {
-        e.preventDefault();
-        resetAllUploads();
-    });
-
-    document.getElementById('entriesLoaded').textContent = totalEntries;
-    document.getElementById('playersLoaded').textContent = totalPlayers;
-    document.getElementById('fileStatus').textContent = `${totalPlayers} players loaded`;
-
-    updateSlateButtons();
-}
-
-function resetAllUploads() {
-    // Clear all data
-    slates = {};
-    entries = [];
-    players = [];
-    lineups = [];
-    loadedFiles = [];
-    currentSlate = null;
-
-    // Reset upload zone to initial state
-    uploadZone.innerHTML = `
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-        </svg>
-        <h3>Drop your DraftKings CSV(s) here</h3>
-        <p>Drop multiple game files at once</p>
-        <input type="file" id="csvInput" accept=".csv" multiple>
-    `;
-
-    // Re-attach event listener
-    const newInput = document.getElementById('csvInput');
-    newInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files).filter(f => f.name.endsWith('.csv'));
-        if (files.length > 0) handleMultipleFiles(files);
-        newInput.value = '';
-    });
-
-    // Reset UI elements
-    document.getElementById('entriesLoaded').textContent = '0';
-    document.getElementById('playersLoaded').textContent = '0';
-    document.getElementById('fileStatus').textContent = 'No file loaded';
-    document.getElementById('lineupsGenerated').textContent = '0';
-    document.getElementById('topProjection').textContent = '0.00';
-    document.getElementById('avgProjection').textContent = '0.00';
-
-    // Reset slate buttons
-    updateSlateButtons();
-
-    // Hide cards that need data
-    document.getElementById('entriesCard').style.display = 'none';
-    document.getElementById('optimizeCard').style.display = 'none';
-    document.getElementById('lineupsCard').style.display = 'none';
-
-    // Clear player pool
-    renderPlayerPool();
-
-    generateBtn.disabled = true;
-}
-
-// Parse CSV and merge into existing slates (for multi-file support)
-function parseCSVMerge(csvData, fileName) {
-    const lines = csvData.split('\n');
-
-    // Don't reset slates - merge into existing data
-
-    let positionColIdx = -1;
-    let playerPoolStartRow = -1;
-
-    for (let i = 0; i < Math.min(15, lines.length); i++) {
-        const row = parseCSVLine(lines[i]);
-        const posIdx = row.findIndex(cell => cell && cell.trim().toUpperCase() === 'POSITION');
-        if (posIdx !== -1) {
-            positionColIdx = posIdx;
-            playerPoolStartRow = i + 1;
-            break;
-        }
-    }
-
-    if (playerPoolStartRow === -1) {
-        console.error('Could not find player pool in CSV:', fileName);
-        return;
-    }
-
-    // Parse entries from this file
-    for (let i = 1; i < playerPoolStartRow - 1; i++) {
-        const line = lines[i];
-        if (!line || !line.trim()) continue;
-
-        const row = parseCSVLine(line);
-
-        if (row[0] && row[0].match(/^\d+$/) && row[1]) {
-            const entryId = row[0].trim();
-            const contestName = row[1] || '';
-            const contestId = row[2] || '';
-            const entryFee = row[3] || '$0';
-
-            let slateNum = 1;
-            const timeMatch = contestName.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-            if (timeMatch) {
-                let hour = parseInt(timeMatch[1]);
-                const minutes = timeMatch[2];
-                const ampm = timeMatch[3].toUpperCase();
-
-                if (ampm === 'PM' && hour !== 12) hour += 12;
-                if (ampm === 'AM' && hour === 12) hour = 0;
-
-                const timeKey = `${hour}:${minutes}`;
-                slateNum = slateTimeMap[timeKey] || slateTimeMap[`${hour}:00`] || 1;
-            }
-
-            const entry = {
-                entryId,
-                contestName,
-                contestId,
-                entryFee,
-                cpt: row[4] || '',
-                flex: [row[5] || '', row[6] || '', row[7] || '', row[8] || '', row[9] || ''],
-                slateNum,
-                optimizedLineup: null
-            };
-
-            entries.push(entry);
-
-            if (!slates[slateNum]) {
-                slates[slateNum] = { entries: [], players: [], lineups: [], gameInfo: '' };
-            }
-            slates[slateNum].entries.push(entry);
-        }
-    }
-
-    // Parse player pool header
-    const headerRow = parseCSVLine(lines[playerPoolStartRow - 1]);
-    const colMap = {};
-    headerRow.forEach((col, idx) => {
-        const upper = (col || '').trim().toUpperCase();
-        if (upper === 'POSITION') colMap.position = idx;
-        if (upper === 'NAME + ID') colMap.nameId = idx;
-        if (upper === 'NAME') colMap.name = idx;
-        if (upper === 'ID') colMap.id = idx;
-        if (upper === 'ROSTER POSITION') colMap.rosterPos = idx;
-        if (upper === 'SALARY') colMap.salary = idx;
-        if (upper === 'GAME INFO') colMap.gameInfo = idx;
-        if (upper === 'TEAMABBREV' || upper === 'TEAM') colMap.team = idx;
-        if (upper === 'AVGPOINTSPERGAME') colMap.projection = idx;
-    });
-
-    const tempPlayers = {};
-
-    for (let i = playerPoolStartRow; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line || !line.trim()) continue;
-
-        const row = parseCSVLine(line);
-
-        const position = (row[colMap.position] || '').trim().toUpperCase();
-        const nameId = (row[colMap.nameId] || '').trim();
-        let name = (row[colMap.name] || '').trim();
-        const id = (row[colMap.id] || '').trim();
-        const rosterPos = (row[colMap.rosterPos] || '').trim().toUpperCase();
-        const salary = parseInt((row[colMap.salary] || '0').replace(/[$,]/g, '')) || 0;
-        const gameInfo = (row[colMap.gameInfo] || '').trim();
-        const team = (row[colMap.team] || '').trim().toUpperCase();
-        const projection = parseFloat(row[colMap.projection] || '0') || 0;
-
-        if (!name && nameId) {
-            const match = nameId.match(/^(.+?)\s*\(\d+\)$/);
-            if (match) name = match[1].trim();
-            else name = nameId;
-        }
-
-        if (!name || !position || !salary) continue;
-
-        let slateNum = 1;
-        const timeMatch = gameInfo.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-        if (timeMatch) {
-            let hour = parseInt(timeMatch[1]);
-            const minutes = timeMatch[2];
-            const ampm = timeMatch[3].toUpperCase();
-
-            if (ampm === 'PM' && hour !== 12) hour += 12;
-            if (ampm === 'AM' && hour === 12) hour = 0;
-
-            const timeKey = `${hour}:${minutes}`;
-            slateNum = slateTimeMap[timeKey] || slateTimeMap[`${hour}:00`] || 1;
-        }
-
-        const playerKey = `${name}-${team}-${slateNum}`;
-
-        if (rosterPos === 'CPT') {
-            if (!tempPlayers[playerKey]) {
-                tempPlayers[playerKey] = {
-                    id,
-                    name,
-                    team,
-                    position,
-                    gameInfo,
-                    slateNum,
-                    cptSalary: salary,
-                    cptProjection: projection,
-                    cptNameId: nameId,
-                    flexSalary: 0,
-                    flexProjection: 0,
-                    flexNameId: ''
-                };
-            } else {
-                tempPlayers[playerKey].cptSalary = salary;
-                tempPlayers[playerKey].cptProjection = projection;
-                tempPlayers[playerKey].cptNameId = nameId;
-            }
-        } else {
-            if (!tempPlayers[playerKey]) {
-                tempPlayers[playerKey] = {
-                    id,
-                    name,
-                    team,
-                    position,
-                    gameInfo,
-                    slateNum,
-                    cptSalary: 0,
-                    cptProjection: 0,
-                    cptNameId: '',
-                    flexSalary: salary,
-                    flexProjection: projection,
-                    flexNameId: nameId
-                };
-            } else {
-                tempPlayers[playerKey].flexSalary = salary;
-                tempPlayers[playerKey].flexProjection = projection;
-                tempPlayers[playerKey].flexNameId = nameId;
-                if (!tempPlayers[playerKey].id) tempPlayers[playerKey].id = id;
-            }
-        }
-    }
-
-    const newPlayers = Object.values(tempPlayers).filter(p => p.flexSalary > 0);
-
-    // Add new players to global players array (avoid duplicates)
-    const existingPlayerKeys = new Set(players.map(p => `${p.name}-${p.team}-${p.slateNum}`));
-    newPlayers.forEach(player => {
-        const playerKey = `${player.name}-${player.team}-${player.slateNum}`;
-        if (!existingPlayerKeys.has(playerKey)) {
-            players.push(player);
-            existingPlayerKeys.add(playerKey);
-        }
-
-        // Add to slate
-        if (!slates[player.slateNum]) {
-            slates[player.slateNum] = { entries: [], players: [], lineups: [], gameInfo: player.gameInfo };
-        }
-
-        // Check if player already exists in slate
-        const slatePlayerKeys = new Set(slates[player.slateNum].players.map(p => `${p.name}-${p.team}`));
-        if (!slatePlayerKeys.has(`${player.name}-${player.team}`)) {
-            slates[player.slateNum].players.push(player);
-        }
-
-        if (!slates[player.slateNum].gameInfo && player.gameInfo) {
-            slates[player.slateNum].gameInfo = player.gameInfo;
-        }
-    });
-
-    console.log(`Parsed ${fileName}: ${newPlayers.length} players, ${Object.keys(slates).length} slates`);
+        const newInput = document.getElementById('csvInput');
+        newInput.addEventListener('change', (e) => {
+            const newFile = e.target.files[0];
+            if (newFile) handleFile(newFile);
+            newInput.value = '';
+        });
+    };
+    reader.readAsText(file);
 }
 
 function parseCSV(csvData) {
@@ -620,7 +306,6 @@ function parseCSV(csvData) {
     slates = {};
     entries = [];
     players = [];
-    loadedFiles = [];
 
     let positionColIdx = -1;
     let playerPoolStartRow = -1;
