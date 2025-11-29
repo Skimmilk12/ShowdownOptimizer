@@ -37,10 +37,10 @@
                 <div class="sport-card-name">NFL</div>
                 <div class="sport-card-status">Coming Soon</div>
             </div>
-            <div class="sport-card disabled" data-sport="nba">
+            <div class="sport-card" data-sport="nba" onclick="selectSport('nba')">
                 <div class="sport-card-icon">🏀</div>
                 <div class="sport-card-name">NBA</div>
-                <div class="sport-card-status">Coming Soon</div>
+                <div class="sport-card-status ready">Ready</div>
             </div>
             <div class="sport-card disabled" data-sport="mlb">
                 <div class="sport-card-icon">⚾</div>
@@ -77,6 +77,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
             Madden SD
+        </div>
+        <div class="main-tab" data-tab="nba">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zM2 12h20M12 2c2.5 2.5 4 6 4 10s-1.5 7.5-4 10c-2.5-2.5-4-6-4-10s1.5-7.5 4-10z"/>
+            </svg>
+            NBA SD
         </div>
         <div class="main-tab" data-tab="classic">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -511,6 +518,325 @@
         </div>
     </div>
     </div> <!-- End Showdown Tab -->
+
+    <!-- NBA Tab Content -->
+    <div class="tab-content" id="nbaTab" style="display: none;">
+    <div class="container">
+        <!-- Stats Row -->
+        <div class="stats-row">
+            <div class="stat-card green">
+                <div class="stat-card-label">DK Entries</div>
+                <div class="stat-card-value" id="nbaEntriesLoaded">0</div>
+                <div class="stat-card-sub">Contest entries</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-card-label">Players Loaded</div>
+                <div class="stat-card-value" id="nbaPlayersLoaded">0</div>
+                <div class="stat-card-sub">From CSV</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="stat-card-label">Lineups Generated</div>
+                <div class="stat-card-value" id="nbaLineupsGenerated">0</div>
+                <div class="stat-card-sub">Optimized</div>
+            </div>
+            <div class="stat-card amber">
+                <div class="stat-card-label">Top Projection</div>
+                <div class="stat-card-value positive" id="nbaTopProjection">0.00</div>
+                <div class="stat-card-sub">Best Lineup</div>
+            </div>
+            <div class="stat-card red">
+                <div class="stat-card-label">Avg Projection</div>
+                <div class="stat-card-value" id="nbaAvgProjection">0.00</div>
+                <div class="stat-card-sub">All Lineups</div>
+            </div>
+        </div>
+
+        <!-- Upload & Settings Section -->
+        <div class="grid-2">
+            <!-- Upload Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        Upload DraftKings Export
+                    </div>
+                    <span class="file-status" id="nbaFileStatus">No file loaded</span>
+                </div>
+                <div class="card-body">
+                    <div class="slate-selector" id="nbaSlateSelector">
+                        <button class="slate-btn" data-slate="1"><span class="slate-num">1</span><span class="slate-time">7:00</span></button>
+                        <button class="slate-btn" data-slate="2"><span class="slate-num">2</span><span class="slate-time">8:00</span></button>
+                        <button class="slate-btn" data-slate="3"><span class="slate-num">3</span><span class="slate-time">9:00</span></button>
+                        <button class="slate-btn" data-slate="4"><span class="slate-num">4</span><span class="slate-time">10:00</span></button>
+                        <button class="slate-btn" data-slate="5"><span class="slate-num">5</span><span class="slate-time">11:00</span></button>
+                        <button class="slate-btn" data-slate="6"><span class="slate-num">6</span><span class="slate-time">12:00</span></button>
+                    </div>
+                    <div class="current-slate-info" id="nbaCurrentSlateInfo">
+                        <div class="slate-info-row">
+                            <div class="slate-info-left">
+                                <div class="slate-badge" id="nbaSlateBadge">1</div>
+                                <div class="slate-details">
+                                    <span class="teams" id="nbaSlateTeams">LAL @ BOS</span>
+                                    <span class="datetime" id="nbaSlateDateTime">7:00 PM ET</span>
+                                </div>
+                            </div>
+                            <div class="slate-info-right">
+                                <span><span class="count" id="nbaSlatePlayerCount">0</span> players</span>
+                                <span><span class="count" id="nbaSlateEntryCount">0</span> entries</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="upload-zone" id="nbaUploadZone">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <h3>Drop your DraftKings CSV here</h3>
+                        <p>Entries + Player Pool export file</p>
+                        <input type="file" id="nbaCsvInput" accept=".csv">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        Optimizer Settings
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label class="settings-label">Salary Range</label>
+                            <span class="slider-values">$<span id="nbaMinSalaryValue">49,000</span> - $<span id="nbaMaxSalaryValue">50,000</span></span>
+                        </div>
+                        <div class="dual-slider">
+                            <div class="slider-track"><div class="slider-range" id="nbaSalaryRange"></div></div>
+                            <input type="range" id="nbaMinSalarySlider" min="40000" max="50000" value="49000" step="500">
+                            <input type="range" id="nbaMaxSalarySlider" min="40000" max="50000" value="50000" step="500">
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label class="settings-label">Projection Floor</label>
+                            <span class="slider-values" id="nbaProjFloorValue">90.0%</span>
+                        </div>
+                        <input type="range" id="nbaProjFloorSlider" min="50" max="100" value="90" step="0.5" class="single-slider">
+                    </div>
+                    <div class="settings-row">
+                        <label class="settings-label">Lineup Count</label>
+                        <div class="button-group">
+                            <button class="lineup-count-btn" data-count="20">20</button>
+                            <button class="lineup-count-btn active" data-count="100">100</button>
+                            <button class="lineup-count-btn" data-count="150">150</button>
+                            <button class="lineup-time-btn" data-seconds="30">30s</button>
+                            <button class="lineup-time-btn" data-seconds="60">60s</button>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-generate" id="nbaGenerateBtn" disabled>
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Generate Lineups
+                    </button>
+                    <div class="progress-container" id="nbaProgressContainer">
+                        <div class="progress-bar"><div class="progress-fill" id="nbaProgressFill"></div></div>
+                        <div class="progress-text" id="nbaProgressText">Generating...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Entries Card -->
+        <div class="card" id="nbaEntriesCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    My DraftKings Entries
+                    <span class="section-slate-badge" id="nbaEntriesSlateBadge"></span>
+                </div>
+                <div class="entries-summary">
+                    <span id="nbaEntriesCount">0 entries</span>
+                    <span class="entry-fee-total" id="nbaTotalEntryFees">$0.00 total</span>
+                </div>
+            </div>
+            <div class="entries-grouped-container" id="nbaEntriesGroupedContainer"></div>
+        </div>
+
+        <!-- Player Pool -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Player Pool
+                    <span class="section-slate-badge" id="nbaPlayerPoolSlateBadge"></span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">
+                    <span id="nbaPlayerCount">0</span> players
+                </div>
+            </div>
+            <div class="card-body" style="padding: 16px 20px 0;">
+                <div class="pool-view-toggle" id="nbaPoolViewToggle">
+                    <button class="pool-view-btn active" data-view="cpt">CPT</button>
+                    <button class="pool-view-btn" data-view="flex">FLEX</button>
+                </div>
+                <div class="filter-pills" id="nbaPositionFilters">
+                    <span class="filter-pill active" data-pos="all">All</span>
+                    <span class="filter-pill" data-pos="PG">PG</span>
+                    <span class="filter-pill" data-pos="SG">SG</span>
+                    <span class="filter-pill" data-pos="SF">SF</span>
+                    <span class="filter-pill" data-pos="PF">PF</span>
+                    <span class="filter-pill" data-pos="C">C</span>
+                </div>
+                <div class="search-input">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" id="nbaPlayerSearch" placeholder="Search players...">
+                </div>
+            </div>
+            <div class="table-container" id="nbaPlayerPoolContainer">
+                <div class="empty-state">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    <h4>No Players Loaded</h4>
+                    <p>Upload a CSV file to load player projections</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated Lineups -->
+        <div class="card" id="nbaLineupsCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    Generated Lineups
+                    <span class="section-slate-badge" id="nbaLineupsSlateBadge"></span>
+                </div>
+                <div class="export-section">
+                    <span style="font-size: 0.8rem; color: var(--text-muted);" id="nbaLineupCountDisplay">0 lineups</span>
+                    <button class="btn btn-secondary" id="nbaClearLineupsBtn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Clear
+                    </button>
+                    <button class="btn btn-secondary" id="nbaExportBtn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Export CSV
+                    </button>
+                </div>
+            </div>
+            <div class="pagination-container" id="nbaPaginationTop" style="display: none;">
+                <div class="pagination">
+                    <button class="pagination-btn" id="nbaPrevPageTop" disabled>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Prev
+                    </button>
+                    <span class="pagination-info" id="nbaPageInfoTop">Page 1 of 1</span>
+                    <button class="pagination-btn" id="nbaNextPageTop">
+                        Next
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <span class="pagination-showing" id="nbaShowingInfoTop">Showing 1-100</span>
+            </div>
+            <div class="lineup-output nba-lineup-output" id="nbaLineupOutput">
+                <div class="lineup-row header">
+                    <div class="sortable" data-sort="rank">Rank ⇅</div>
+                    <div>CPT</div>
+                    <div>FLEX</div>
+                    <div>FLEX</div>
+                    <div>FLEX</div>
+                    <div>FLEX</div>
+                    <div>FLEX</div>
+                    <div class="sortable" data-sort="salary">Salary ⇅</div>
+                    <div class="sortable sort-desc" data-sort="points">Points ↓</div>
+                    <div class="sortable pctl-col" data-sort="pctl25">25th ⇅</div>
+                    <div class="sortable pctl-col" data-sort="pctl75">75th ⇅</div>
+                    <div class="sortable pctl-col" data-sort="pctl85">85th ⇅</div>
+                    <div class="sortable pctl-col" data-sort="pctl95">95th ⇅</div>
+                    <div class="sortable pctl-col" data-sort="std">STD ⇅</div>
+                </div>
+                <div id="nbaLineupRows"></div>
+            </div>
+        </div>
+
+        <!-- Optimize Card -->
+        <div class="card" id="nbaOptimizeCard" style="display: none;">
+            <div class="card-header">
+                <div class="card-title">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    Assign Lineups to Entries
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="optimize-status" id="nbaOptimizeStatus">Select optimization mode and click Optimize</div>
+                <div class="optimize-modes">
+                    <button class="optimize-mode-btn active" data-mode="balanced">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <span>Balanced</span>
+                        <small>Cash=Top, GPP=Unique</small>
+                    </button>
+                    <button class="optimize-mode-btn" data-mode="cash">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Cash Mode</span>
+                        <small>All entries get #1</small>
+                    </button>
+                    <button class="optimize-mode-btn" data-mode="paw-patrol">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                        <span>Paw Patrol</span>
+                        <small>Portfolio diversity</small>
+                    </button>
+                </div>
+                <div id="nbaPawPatrolSettings" style="display: none;">
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label class="settings-label">Diversity Strength</label>
+                            <span id="nbaDiversityValue">5</span>
+                        </div>
+                        <input type="range" id="nbaDiversitySlider" min="1" max="10" value="5" class="single-slider">
+                    </div>
+                </div>
+                <div class="optimize-actions">
+                    <button class="btn btn-primary" id="nbaOptimizeBtn" disabled>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Optimize Entries
+                    </button>
+                    <button class="btn btn-secondary" id="nbaExportEntriesBtn" disabled>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export Entries
+                    </button>
+                </div>
+                <div class="portfolio-summary" id="nbaPortfolioSummary" style="display: none;">
+                    <h4>Portfolio Exposure</h4>
+                    <div class="exposure-list" id="nbaPortfolioExposureList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div> <!-- End NBA Tab -->
 
     <!-- Classic Tab Content (hidden until sport selected) -->
     <div class="tab-content" id="classicTab" style="display: none;">
@@ -1414,6 +1740,7 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
     <script src="js/core/utils.js"></script>
     <script src="js/sports/madden/showdown.js"></script>
     <script src="js/sports/madden/classic.js"></script>
+    <script src="js/sports/nba/showdown.js"></script>
     <script src="js/core/converter.js?v=3"></script>
     <script src="js/core/app.js"></script>
 </body>

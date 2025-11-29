@@ -2854,3 +2854,122 @@ tr:last-child td {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* ==========================================
+   NBA SHOWDOWN STYLES
+   ========================================== */
+
+/* Pool View Toggle (CPT/FLEX buttons) */
+.pool-view-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 4px;
+    margin-left: auto;
+}
+
+.pool-view-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.pool-view-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.pool-view-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.pool-view-btn.active[data-view="cpt"] {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #000;
+}
+
+.pool-view-btn.active[data-view="flex"] {
+    background: var(--accent-primary);
+    color: white;
+}
+
+/* NBA Position Badges */
+.position-badge.pg { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.position-badge.sg { background-color: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.position-badge.sf { background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.position-badge.pf { background-color: rgba(16, 185, 129, 0.15); color: #10b981; }
+.position-badge.c { background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+
+/* NBA Lineup Row with Percentile Columns (14 columns total) */
+#nbaLineupOutput .lineup-row {
+    grid-template-columns: 60px repeat(6, 1fr) 100px 100px 60px 60px 60px 60px 60px;
+}
+
+/* Percentile Column Styles */
+.lineup-pctl {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.lineup-pctl.pctl-25 {
+    color: var(--text-muted);
+}
+
+.lineup-pctl.pctl-75 {
+    color: var(--accent-primary);
+}
+
+.lineup-pctl.pctl-85 {
+    color: #3b82f6;
+}
+
+.lineup-pctl.pctl-95 {
+    color: #8b5cf6;
+}
+
+.lineup-pctl.pctl-std {
+    color: var(--text-secondary);
+}
+
+/* Percentile header column style */
+.pctl-col {
+    font-size: 0.65rem;
+    text-align: center;
+}
+
+/* NBA Player Table Position Filter */
+#nbaPositionFilters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+#nbaPositionFilters .filter-pill {
+    min-width: 40px;
+    text-align: center;
+}
+
+/* NBA Lineup Grid Responsive */
+@media (max-width: 1400px) {
+    #nbaLineupOutput .lineup-row {
+        grid-template-columns: 50px repeat(6, 1fr) 80px 80px 50px 50px 50px 50px 50px;
+        font-size: 0.75rem;
+    }
+
+    #nbaLineupOutput .lineup-player-name {
+        font-size: 0.7rem;
+    }
+
+    .lineup-pctl {
+        font-size: 0.65rem;
+    }
+}
