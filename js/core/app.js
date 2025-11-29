@@ -7,7 +7,7 @@ let currentSport = null;
 
 // Sport selector functions
 function selectSport(sportId) {
-    if (sportId !== 'madden') {
+    if (sportId !== 'madden' && sportId !== 'nba') {
         // Other sports not ready yet
         return;
     }
@@ -22,16 +22,46 @@ function selectSport(sportId) {
     // Hide sport selector
     document.getElementById('sportSelector').style.display = 'none';
 
-    // Show main tabs and content
+    // Show main tabs
     document.getElementById('mainTabs').style.display = 'flex';
-    document.getElementById('showdownTab').style.display = 'block';
-    document.getElementById('showdownTab').classList.add('active');
+
+    // Hide all tab contents first
+    document.getElementById('showdownTab').style.display = 'none';
+    document.getElementById('showdownTab').classList.remove('active');
     document.getElementById('classicTab').style.display = 'none';
     document.getElementById('playerdataTab').style.display = 'none';
     document.getElementById('converterTab').style.display = 'none';
 
-    // Update header
-    document.getElementById('headerTitle').textContent = 'NFL Madden Optimizer';
+    const nbaTab = document.getElementById('nbaTab');
+    if (nbaTab) {
+        nbaTab.style.display = 'none';
+        nbaTab.classList.remove('active');
+    }
+
+    // Update main tab active states
+    document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+
+    if (sportId === 'madden') {
+        // Show Madden Showdown tab
+        document.getElementById('showdownTab').style.display = 'block';
+        document.getElementById('showdownTab').classList.add('active');
+        document.querySelector('.main-tab[data-tab="showdown"]').classList.add('active');
+        document.getElementById('headerTitle').textContent = 'NFL Madden Optimizer';
+    } else if (sportId === 'nba') {
+        // Show NBA Showdown tab
+        if (nbaTab) {
+            nbaTab.style.display = 'block';
+            nbaTab.classList.add('active');
+        }
+        document.querySelector('.main-tab[data-tab="nba"]').classList.add('active');
+        document.getElementById('headerTitle').textContent = 'NBA Showdown Optimizer';
+
+        // Initialize NBA if needed
+        if (typeof initNbaShowdown === 'function') {
+            initNbaShowdown();
+        }
+    }
+
     document.getElementById('headerBadge').textContent = 'DraftKings';
 }
 
@@ -53,6 +83,11 @@ function backToSportSelector() {
     document.getElementById('playerdataTab').style.display = 'none';
     document.getElementById('converterTab').style.display = 'none';
 
+    const nbaTab = document.getElementById('nbaTab');
+    if (nbaTab) {
+        nbaTab.style.display = 'none';
+    }
+
     // Reset header
     document.getElementById('headerTitle').textContent = 'Showdown Optimizer';
     document.getElementById('headerBadge').textContent = 'Select Sport';
@@ -61,8 +96,8 @@ function backToSportSelector() {
 function checkSavedSport() {
     try {
         const savedSport = localStorage.getItem('selectedSport');
-        if (savedSport === 'madden') {
-            selectSport('madden');
+        if (savedSport === 'madden' || savedSport === 'nba') {
+            selectSport(savedSport);
         }
     } catch (e) {}
 }
