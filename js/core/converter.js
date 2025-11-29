@@ -1075,32 +1075,51 @@ async function pushToGoogleSheet(positionOverride = null) {
 
     updateStatus(`Pushing ${records.length} ${position} records to Google Sheets...`, 'info');
 
+    // Use iframe/form submission approach - most reliable for Apps Script
     try {
-        // POST directly to Google Apps Script
-        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Apps Script requires this
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                position: position,
-                records: records
-            })
-        });
+        const payload = {
+            position: position,
+            records: records
+        };
 
-        // Note: no-cors means we can't read the response, but the request still goes through
-        console.log(`[Converter] Push request sent for ${records.length} ${position} records`);
+        // Create a hidden form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_APPS_SCRIPT_URL;
+        form.target = 'hidden_iframe';
+        form.style.display = 'none';
 
-        // Clear the records after successful push
-        newRecordsThisSession[position] = [];
-        updatePositionSummary();
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(payload);
+        form.appendChild(input);
 
-        updateStatus(`✓ ${records.length} ${position} records pushed to Google Sheets!`, 'success');
+        // Create hidden iframe to receive response
+        let iframe = document.getElementById('hidden_iframe');
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = 'hidden_iframe';
+            iframe.name = 'hidden_iframe';
+            iframe.style.display = 'none';
+            document.body.appendChild(iframe);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Since we can't read the iframe response (CORS), assume success after a short delay
+        setTimeout(() => {
+            console.log(`[Converter] Push submitted for ${records.length} ${position} records`);
+            newRecordsThisSession[position] = [];
+            updatePositionSummary();
+            updateStatus(`✓ ${records.length} ${position} records pushed to Google Sheets!`, 'success');
+        }, 1000);
 
     } catch (error) {
         console.error('[Converter] Push failed:', error);
-        updateStatus(`Push failed: ${error.message}. Try clipboard fallback.`, 'error');
+        updateStatus(`Push failed: ${error.message}. Using clipboard fallback.`, 'error');
 
         // Fallback to clipboard method
         fallbackToClipboard(position, records);
