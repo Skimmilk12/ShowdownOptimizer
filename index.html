@@ -1193,20 +1193,12 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="converter-player-info" id="cvPlayerInfo">
-                            <div class="cv-info-placeholder">
-                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="48" height="48">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                                </svg>
-                                <p>Paste and parse player data to see info</p>
-                            </div>
-                        </div>
-
-                        <!-- Manual Override Section -->
-                        <div class="cv-manual-override" id="cvManualOverride" style="display: none;">
+                        <!-- Player Input Section - Always Visible -->
+                        <div class="cv-manual-override" id="cvManualOverride">
+                            <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Enter Player Details First</h4>
                             <div class="cv-override-row">
                                 <div class="cv-override-field">
-                                    <label>Player Name</label>
+                                    <label>Player Name *</label>
                                     <input type="text" id="cvPlayerName" placeholder="e.g. Josh Allen">
                                 </div>
                                 <div class="cv-override-field">
@@ -1228,6 +1220,9 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Player Info Display (shown after parsing) -->
+                        <div class="converter-player-info" id="cvPlayerInfo" style="display: none;"></div>
                     </div>
                 </div>
             </div>
