@@ -128,6 +128,12 @@ function initConverterTab() {
             }
         });
     });
+
+    // Reset session button
+    const resetBtn = document.getElementById('cvResetSessionBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetConverterSession);
+    }
 }
 
 function populateTeamDropdown() {
@@ -380,7 +386,12 @@ function parseConverterData() {
         playerGameData[position].map(r => `${r.name}|${r.week}`)
     );
 
+    console.log(`[Converter] Parsing ${playerName} (${position})`);
+    console.log(`[Converter] Found ${records.length} game records in pasted data`);
+    console.log(`[Converter] Existing ${position} records in memory: ${playerGameData[position].length}`);
+
     let addedCount = 0;
+    let duplicateCount = 0;
     records.forEach(record => {
         const key = `${record.player}|${record.week}`;
         if (!existingKeys.has(key)) {
@@ -397,13 +408,26 @@ function parseConverterData() {
             newRecordsThisSession[position].push(newRecord);
             existingKeys.add(key);
             addedCount++;
+        } else {
+            duplicateCount++;
+            console.log(`[Converter] Skipped duplicate: ${record.player} Week ${record.week}`);
         }
     });
 
+    console.log(`[Converter] Added ${addedCount} new, skipped ${duplicateCount} duplicates`);
+    console.log(`[Converter] newRecordsThisSession[${position}] now has ${newRecordsThisSession[position].length} records`);
+
     converterState.recordsAdded += addedCount;
 
-    // Update UI
-    updateStatus(`Added ${addedCount} games for ${playerName} (${converterState.playersParsed} players done)`, 'success');
+    // Update UI - show what's pending
+    const pendingTotal = Object.values(newRecordsThisSession).reduce((sum, arr) => sum + arr.length, 0);
+    if (addedCount > 0) {
+        updateStatus(`✓ Added ${addedCount} games for ${playerName}. Total pending: ${pendingTotal}`, 'success');
+    } else if (duplicateCount > 0) {
+        updateStatus(`⚠ ${playerName} already parsed this session (${duplicateCount} duplicates skipped)`, 'error');
+    } else {
+        updateStatus(`No game records found for ${playerName}`, 'error');
+    }
     updatePlayerInfo(playerName, teamAbbr, position, records);
     updatePositionSummary();
 
@@ -981,6 +1005,8 @@ function showConnectedSheet() {
 async function pushToGoogleSheet(positionOverride = null) {
     // Allow specifying position, or use current position
     const position = positionOverride || converterState.currentPosition;
+    console.log(`[Converter] Push requested for position: ${position}`);
+
     if (!position) {
         updateStatus('Select a position first', 'error');
         return;
@@ -994,8 +1020,11 @@ async function pushToGoogleSheet(positionOverride = null) {
 
     // ONLY push NEW records added this session (not ones already in sheet)
     const records = newRecordsThisSession[position] || [];
+    console.log(`[Converter] newRecordsThisSession[${position}] has ${records.length} records`);
+    console.log(`[Converter] playerGameData[${position}] has ${playerGameData[position].length} records`);
+
     if (records.length === 0) {
-        updateStatus(`No NEW ${position} records to push (all already in sheet)`, 'info');
+        updateStatus(`No NEW ${position} records to push. Parse players first, then push.`, 'info');
         return;
     }
 
@@ -1014,13 +1043,80 @@ async function pushToGoogleSheet(positionOverride = null) {
 
     try {
         await navigator.clipboard.writeText(csvData);
-        updateStatus(`${records.length} NEW ${position} records copied! Paste at bottom of sheet (Ctrl+V)`, 'success');
+        updateStatus(`✓ ${records.length} ${position} records copied! Paste in sheet (Ctrl+V), then click "Mark Pushed"`, 'success');
 
-        // Clear the new records for this position after pushing
-        newRecordsThisSession[position] = [];
+        // DON'T auto-clear - let user confirm with "Mark as Pushed" button
+        // Show the mark pushed button
+        showMarkPushedButton(position, records.length);
     } catch (e) {
         updateStatus(`Sheet opened. Manually copy data.`, 'info');
     }
+}
+
+// Show a button to confirm the push was completed
+function showMarkPushedButton(position, count) {
+    // Create or update the mark pushed button
+    let btn = document.getElementById('cvMarkPushedBtn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'cvMarkPushedBtn';
+        btn.className = 'btn btn-primary';
+        btn.style.marginTop = '10px';
+        document.getElementById('cvStatus').parentElement.appendChild(btn);
+    }
+    btn.textContent = `✓ Mark ${count} ${position} records as pushed`;
+    btn.style.display = 'inline-block';
+    btn.onclick = () => markAsPushed(position);
+}
+
+// Confirm records were pasted and clear them
+function markAsPushed(position) {
+    const count = newRecordsThisSession[position]?.length || 0;
+    newRecordsThisSession[position] = [];
+    updatePositionSummary();
+    updateStatus(`✓ ${count} ${position} records marked as pushed`, 'success');
+
+    // Hide the button
+    const btn = document.getElementById('cvMarkPushedBtn');
+    if (btn) btn.style.display = 'none';
+
+    console.log(`[Converter] Cleared newRecordsThisSession[${position}]`);
+}
+
+// Reset the entire session (clear all parsed data)
+function resetConverterSession() {
+    // Clear all new records
+    Object.keys(newRecordsThisSession).forEach(pos => {
+        newRecordsThisSession[pos] = [];
+    });
+
+    // Clear playerGameData too (so duplicates aren't blocked)
+    Object.keys(playerGameData).forEach(pos => {
+        playerGameData[pos] = [];
+    });
+
+    // Reset counters
+    converterState.parsedRecords = [];
+    converterState.currentPlayer = null;
+    converterState.currentPosition = null;
+    converterState.playersParsed = 0;
+    converterState.recordsAdded = 0;
+
+    // Update UI
+    document.getElementById('cvPlayersParsed').textContent = '0';
+    document.getElementById('cvRecordsAdded').textContent = '0';
+    document.getElementById('cvCurrentPosition').textContent = '—';
+    document.getElementById('cvCurrentPlayer').textContent = '—';
+    document.getElementById('cvPasteArea').value = '';
+    document.getElementById('cvPlayerInfo').style.display = 'none';
+
+    // Hide mark pushed button
+    const btn = document.getElementById('cvMarkPushedBtn');
+    if (btn) btn.style.display = 'none';
+
+    updatePositionSummary();
+    updateStatus('Session reset. Ready for fresh data.', 'success');
+    console.log('[Converter] Session reset - all data cleared');
 }
 
 async function pullFromGoogleSheet() {
