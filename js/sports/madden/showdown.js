@@ -10,7 +10,6 @@ let selectedTimeSeconds = null;
 let generationMode = 'count';
 let currentSort = { column: 'points', direction: 'desc' };
 let playerPoolSort = { column: 'flexProjection', direction: 'desc' };
-let playerPoolView = 'cpt'; // 'cpt' or 'flex'
 let currentPage = 1;
 const lineupsPerPage = 100;
 let minSalary = 49000;
@@ -208,7 +207,7 @@ function initShowdownEventListeners() {
     document.getElementById('exportBtn').addEventListener('click', () => {
         if (lineups.length === 0) return;
 
-        const headers = ['CPT', 'FLEX', 'FLEX', 'FLEX', 'FLEX', 'FLEX', 'Salary', 'Projection', '25th', '75th', '85th', '95th', 'STD'];
+        const headers = ['CPT', 'FLEX', 'FLEX', 'FLEX', 'FLEX', 'FLEX', 'Salary', 'Projection'];
         const rows = lineups.map(lineup => {
             const cpt = lineup.players[0];
             const flex = lineup.players.slice(1);
@@ -216,12 +215,7 @@ function initShowdownEventListeners() {
                 cpt.name,
                 ...flex.map(p => p.name),
                 lineup.totalSalary,
-                lineup.totalProjection.toFixed(2),
-                (lineup.totalPctl25 || 0).toFixed(2),
-                (lineup.totalPctl75 || 0).toFixed(2),
-                (lineup.totalPctl85 || 0).toFixed(2),
-                (lineup.totalPctl95 || 0).toFixed(2),
-                (lineup.totalStd || 0).toFixed(2)
+                lineup.totalProjection.toFixed(2)
             ];
         });
 
@@ -253,16 +247,6 @@ function initShowdownEventListeners() {
                 <p>Click "Generate Lineups" to create optimized lineups</p>
             </div>
         `;
-    });
-
-    // Pool view toggle (CPT/FLEX)
-    document.querySelectorAll('#poolViewToggle .pool-view-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('#poolViewToggle .pool-view-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            playerPoolView = btn.dataset.view;
-            renderPlayerPool();
-        });
     });
 
     // Position filters
@@ -400,12 +384,6 @@ function parseCSV(csvData) {
         if (upper === 'GAME INFO') colMap.gameInfo = idx;
         if (upper === 'TEAMABBREV' || upper === 'TEAM') colMap.team = idx;
         if (upper === 'AVGPOINTSPERGAME') colMap.projection = idx;
-        // DK percentile columns
-        if (upper === '25TH' || upper === 'DK 25TH') colMap.pctl25 = idx;
-        if (upper === '75TH' || upper === 'DK 75TH') colMap.pctl75 = idx;
-        if (upper === '85TH' || upper === 'DK 85TH') colMap.pctl85 = idx;
-        if (upper === '95TH' || upper === 'DK 95TH') colMap.pctl95 = idx;
-        if (upper === 'STD' || upper === 'STDEV' || upper === 'DK STD') colMap.std = idx;
     });
 
     const tempPlayers = {};
@@ -425,12 +403,6 @@ function parseCSV(csvData) {
         const gameInfo = (row[colMap.gameInfo] || '').trim();
         const team = (row[colMap.team] || '').trim().toUpperCase();
         const projection = parseFloat(row[colMap.projection] || '0') || 0;
-        // Parse percentile values if available
-        const pctl25 = colMap.pctl25 !== undefined ? parseFloat(row[colMap.pctl25] || '0') || 0 : 0;
-        const pctl75 = colMap.pctl75 !== undefined ? parseFloat(row[colMap.pctl75] || '0') || 0 : 0;
-        const pctl85 = colMap.pctl85 !== undefined ? parseFloat(row[colMap.pctl85] || '0') || 0 : 0;
-        const pctl95 = colMap.pctl95 !== undefined ? parseFloat(row[colMap.pctl95] || '0') || 0 : 0;
-        const std = colMap.std !== undefined ? parseFloat(row[colMap.std] || '0') || 0 : 0;
 
         if (!name && nameId) {
             const match = nameId.match(/^(.+?)\s*\(\d+\)$/);
@@ -468,30 +440,14 @@ function parseCSV(csvData) {
                     cptSalary: salary,
                     cptProjection: projection,
                     cptNameId: nameId,
-                    // CPT percentiles (1.5x multiplier applied)
-                    cptPctl25: pctl25,
-                    cptPctl75: pctl75,
-                    cptPctl85: pctl85,
-                    cptPctl95: pctl95,
-                    cptStd: std,
                     flexSalary: 0,
                     flexProjection: 0,
-                    flexNameId: '',
-                    flexPctl25: 0,
-                    flexPctl75: 0,
-                    flexPctl85: 0,
-                    flexPctl95: 0,
-                    flexStd: 0
+                    flexNameId: ''
                 };
             } else {
                 tempPlayers[playerKey].cptSalary = salary;
                 tempPlayers[playerKey].cptProjection = projection;
                 tempPlayers[playerKey].cptNameId = nameId;
-                tempPlayers[playerKey].cptPctl25 = pctl25;
-                tempPlayers[playerKey].cptPctl75 = pctl75;
-                tempPlayers[playerKey].cptPctl85 = pctl85;
-                tempPlayers[playerKey].cptPctl95 = pctl95;
-                tempPlayers[playerKey].cptStd = std;
             }
         } else {
             if (!tempPlayers[playerKey]) {
@@ -505,30 +461,14 @@ function parseCSV(csvData) {
                     cptSalary: 0,
                     cptProjection: 0,
                     cptNameId: '',
-                    cptPctl25: 0,
-                    cptPctl75: 0,
-                    cptPctl85: 0,
-                    cptPctl95: 0,
-                    cptStd: 0,
                     flexSalary: salary,
                     flexProjection: projection,
-                    flexNameId: nameId,
-                    // FLEX percentiles
-                    flexPctl25: pctl25,
-                    flexPctl75: pctl75,
-                    flexPctl85: pctl85,
-                    flexPctl95: pctl95,
-                    flexStd: std
+                    flexNameId: nameId
                 };
             } else {
                 tempPlayers[playerKey].flexSalary = salary;
                 tempPlayers[playerKey].flexProjection = projection;
                 tempPlayers[playerKey].flexNameId = nameId;
-                tempPlayers[playerKey].flexPctl25 = pctl25;
-                tempPlayers[playerKey].flexPctl75 = pctl75;
-                tempPlayers[playerKey].flexPctl85 = pctl85;
-                tempPlayers[playerKey].flexPctl95 = pctl95;
-                tempPlayers[playerKey].flexStd = std;
                 if (!tempPlayers[playerKey].id) tempPlayers[playerKey].id = id;
             }
         }
@@ -660,7 +600,6 @@ function renderPlayerPool() {
     const searchTerm = document.getElementById('playerSearch').value.toLowerCase();
     const activeFilter = document.querySelector('#positionFilters .filter-pill.active');
     const posFilter = activeFilter ? activeFilter.dataset.pos : 'all';
-    const isCptView = playerPoolView === 'cpt';
 
     let filtered = players.filter(p => {
         const matchesSearch = p.name.toLowerCase().includes(searchTerm) ||
@@ -669,11 +608,13 @@ function renderPlayerPool() {
         return matchesSearch && matchesPosition;
     });
 
-    // Sort by projection based on view (CPT = 1.5x multiplier)
     filtered.sort((a, b) => {
-        const aProj = isCptView ? (a.cptProjection || a.flexProjection * 1.5) : a.flexProjection;
-        const bProj = isCptView ? (b.cptProjection || b.flexProjection * 1.5) : b.flexProjection;
-        return playerPoolSort.direction === 'desc' ? bProj - aProj : aProj - bProj;
+        if (playerPoolSort.column === 'flexProjection') {
+            return playerPoolSort.direction === 'desc'
+                ? b.flexProjection - a.flexProjection
+                : a.flexProjection - b.flexProjection;
+        }
+        return 0;
     });
 
     document.getElementById('playerCount').textContent = filtered.length;
@@ -706,17 +647,13 @@ function renderPlayerPool() {
     `;
 
     filtered.slice(0, 100).forEach(p => {
-        const salary = isCptView ? (p.cptSalary || Math.round(p.flexSalary * 1.5)) : p.flexSalary;
-        const projection = isCptView ? (p.cptProjection || p.flexProjection * 1.5) : p.flexProjection;
-        const projColor = isCptView ? 'var(--accent-tertiary)' : 'var(--accent-primary)';
-
         html += `
             <tr>
                 <td style="font-weight: 500;">${p.name}</td>
                 <td><span class="position-badge ${p.position.toLowerCase()}">${p.position}</span></td>
                 <td class="team-badge">${p.team}</td>
-                <td>$${salary.toLocaleString()}</td>
-                <td style="color: ${projColor}; font-weight: 600;">${projection.toFixed(1)}</td>
+                <td>$${p.flexSalary.toLocaleString()}</td>
+                <td style="color: var(--accent-primary); font-weight: 600;">${p.flexProjection.toFixed(1)}</td>
             </tr>
         `;
     });
@@ -1099,58 +1036,38 @@ function generateRandomizedLineup(sortedPlayers, teams) {
 
     const totalProjection = (captain.flexProjection * 1.5) + flexPlayers.reduce((sum, p) => sum + p.flexProjection, 0);
 
-    // Calculate percentile totals (CPT uses cpt values, FLEX uses flex values)
-    const totalPctl25 = (captain.cptPctl25 || captain.flexPctl25 * 1.5 || 0) +
-                        flexPlayers.reduce((sum, p) => sum + (p.flexPctl25 || 0), 0);
-    const totalPctl75 = (captain.cptPctl75 || captain.flexPctl75 * 1.5 || 0) +
-                        flexPlayers.reduce((sum, p) => sum + (p.flexPctl75 || 0), 0);
-    const totalPctl85 = (captain.cptPctl85 || captain.flexPctl85 * 1.5 || 0) +
-                        flexPlayers.reduce((sum, p) => sum + (p.flexPctl85 || 0), 0);
-    const totalPctl95 = (captain.cptPctl95 || captain.flexPctl95 * 1.5 || 0) +
-                        flexPlayers.reduce((sum, p) => sum + (p.flexPctl95 || 0), 0);
-    const totalStd = (captain.cptStd || captain.flexStd * 1.5 || 0) +
-                     flexPlayers.reduce((sum, p) => sum + (p.flexStd || 0), 0);
-
     return {
         players: [
             { ...captain, isCpt: true, cptSalary: cptSalary },
             ...flexPlayers.map(p => ({ ...p, isCpt: false }))
         ],
         totalSalary,
-        totalProjection,
-        totalPctl25,
-        totalPctl75,
-        totalPctl85,
-        totalPctl95,
-        totalStd
+        totalProjection
     };
 }
 
 function renderLineups() {
     document.getElementById('lineupCountDisplay').textContent = `${lineups.length} lineups`;
 
-    // Update all sortable headers
-    const sortableHeaders = document.querySelectorAll('.lineup-row.header .sortable');
-    const headerLabels = {
-        'rank': 'Rank',
-        'salary': 'Salary',
-        'points': 'Points',
-        'pctl25': '25th',
-        'pctl75': '75th',
-        'pctl85': '85th',
-        'pctl95': '95th',
-        'std': 'STD'
-    };
+    const salaryHeader = document.querySelector('.lineup-row.header [data-sort="salary"]');
+    const pointsHeader = document.querySelector('.lineup-row.header [data-sort="points"]');
+    const rankHeader = document.querySelector('.lineup-row.header [data-sort="rank"]');
 
-    sortableHeaders.forEach(h => {
-        h.classList.remove('sort-asc', 'sort-desc');
-        const col = h.dataset.sort;
-        const label = headerLabels[col] || col;
-        if (currentSort.column === col) {
-            h.classList.add(currentSort.direction === 'desc' ? 'sort-desc' : 'sort-asc');
-            h.textContent = label + (currentSort.direction === 'desc' ? ' ↓' : ' ↑');
-        } else {
-            h.textContent = label + ' ⇅';
+    [salaryHeader, pointsHeader, rankHeader].forEach(h => {
+        if (h) {
+            h.classList.remove('sort-asc', 'sort-desc');
+            const col = h.dataset.sort;
+            const sortCol = currentSort.column === 'rank' ? 'rank' : currentSort.column;
+            if (col === sortCol || (col === 'points' && currentSort.column === 'points') || (col === 'salary' && currentSort.column === 'salary')) {
+                if (currentSort.column === col) {
+                    h.classList.add(currentSort.direction === 'desc' ? 'sort-desc' : 'sort-asc');
+                    h.textContent = h.dataset.sort.charAt(0).toUpperCase() + h.dataset.sort.slice(1) + (currentSort.direction === 'desc' ? ' ↓' : ' ↑');
+                } else {
+                    h.textContent = h.dataset.sort.charAt(0).toUpperCase() + h.dataset.sort.slice(1) + ' ⇅';
+                }
+            } else {
+                h.textContent = h.dataset.sort.charAt(0).toUpperCase() + h.dataset.sort.slice(1) + ' ⇅';
+            }
         }
     });
 
@@ -1179,26 +1096,6 @@ function renderLineups() {
         sortedLineups.sort((a, b) => currentSort.direction === 'desc'
             ? b.totalSalary - a.totalSalary
             : a.totalSalary - b.totalSalary);
-    } else if (currentSort.column === 'pctl25') {
-        sortedLineups.sort((a, b) => currentSort.direction === 'desc'
-            ? (b.totalPctl25 || 0) - (a.totalPctl25 || 0)
-            : (a.totalPctl25 || 0) - (b.totalPctl25 || 0));
-    } else if (currentSort.column === 'pctl75') {
-        sortedLineups.sort((a, b) => currentSort.direction === 'desc'
-            ? (b.totalPctl75 || 0) - (a.totalPctl75 || 0)
-            : (a.totalPctl75 || 0) - (b.totalPctl75 || 0));
-    } else if (currentSort.column === 'pctl85') {
-        sortedLineups.sort((a, b) => currentSort.direction === 'desc'
-            ? (b.totalPctl85 || 0) - (a.totalPctl85 || 0)
-            : (a.totalPctl85 || 0) - (b.totalPctl85 || 0));
-    } else if (currentSort.column === 'pctl95') {
-        sortedLineups.sort((a, b) => currentSort.direction === 'desc'
-            ? (b.totalPctl95 || 0) - (a.totalPctl95 || 0)
-            : (a.totalPctl95 || 0) - (b.totalPctl95 || 0));
-    } else if (currentSort.column === 'std') {
-        sortedLineups.sort((a, b) => currentSort.direction === 'desc'
-            ? (b.totalStd || 0) - (a.totalStd || 0)
-            : (a.totalStd || 0) - (b.totalStd || 0));
     } else if (currentSort.column === 'rank') {
         if (currentSort.direction === 'asc') {
             sortedLineups.reverse();
@@ -1228,9 +1125,6 @@ function renderLineups() {
         const flex = lineup.players.slice(1);
         const actualRank = startIdx + idx + 1;
 
-        // Format percentile values (show '-' if no data)
-        const formatPctl = (val) => val ? val.toFixed(1) : '-';
-
         return `
             <div class="lineup-row">
                 <div class="lineup-rank">#${actualRank}</div>
@@ -1252,11 +1146,6 @@ function renderLineups() {
                 `).join('')}
                 <div class="lineup-salary">$${lineup.totalSalary.toLocaleString()}</div>
                 <div class="lineup-points">${lineup.totalProjection.toFixed(2)}</div>
-                <div class="lineup-pctl pctl-25">${formatPctl(lineup.totalPctl25)}</div>
-                <div class="lineup-pctl pctl-75">${formatPctl(lineup.totalPctl75)}</div>
-                <div class="lineup-pctl pctl-85">${formatPctl(lineup.totalPctl85)}</div>
-                <div class="lineup-pctl pctl-95">${formatPctl(lineup.totalPctl95)}</div>
-                <div class="lineup-pctl pctl-std">${formatPctl(lineup.totalStd)}</div>
             </div>
         `;
     }).join('');
