@@ -1310,6 +1310,19 @@ Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
                                 Pull from Sheet
                             </button>
                         </div>
+                        <!-- Apps Script URL Setup (hidden by default) -->
+                        <div class="cv-apps-script-setup" id="cvAppsScriptSetup" style="display: none; margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 8px;">
+                            <p style="margin: 0 0 8px 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                Paste your Google Apps Script Web App URL below.
+                                <a href="https://script.google.com" target="_blank" style="color: var(--accent-primary);">Create one here</a> using the code from google-apps-script.js
+                            </p>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="cvAppsScriptUrlInput" placeholder="https://script.google.com/macros/s/XXXXX/exec"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                                <button class="btn btn-primary" id="cvSaveAppsScriptBtn">Save</button>
+                                <button class="btn btn-secondary" id="cvCancelAppsScriptBtn">Cancel</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

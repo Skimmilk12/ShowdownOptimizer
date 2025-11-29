@@ -145,6 +145,18 @@ function initConverterTab() {
         setupAutoPushBtn.addEventListener('click', setAppsScriptUrl);
     }
 
+    // Save Apps Script URL button
+    const saveAppsScriptBtn = document.getElementById('cvSaveAppsScriptBtn');
+    if (saveAppsScriptBtn) {
+        saveAppsScriptBtn.addEventListener('click', saveAppsScriptUrl);
+    }
+
+    // Cancel Apps Script setup button
+    const cancelAppsScriptBtn = document.getElementById('cvCancelAppsScriptBtn');
+    if (cancelAppsScriptBtn) {
+        cancelAppsScriptBtn.addEventListener('click', cancelAppsScriptSetup);
+    }
+
     // Show API status
     updateApiStatus();
 }
@@ -1115,31 +1127,49 @@ async function fallbackToClipboard(position, records) {
     }
 }
 
-// Show setup dialog for Apps Script URL
+// Toggle the Apps Script URL setup panel
 function showAppsScriptSetup() {
-    const currentUrl = GOOGLE_APPS_SCRIPT_URL ? `\n\nCurrent: ${GOOGLE_APPS_SCRIPT_URL.substring(0, 50)}...` : '';
-    const url = prompt(
-        'Enter your Google Apps Script Web App URL:\n\n' +
-        'SETUP INSTRUCTIONS:\n' +
-        '1. Go to script.google.com and create a new project\n' +
-        '2. Copy the code from google-apps-script.js into it\n' +
-        '3. Deploy as Web App (Execute as: Me, Access: Anyone)\n' +
-        '4. Paste the URL here\n\n' +
-        'URL looks like: https://script.google.com/macros/s/XXXXX/exec' + currentUrl
-    );
+    const setupPanel = document.getElementById('cvAppsScriptSetup');
+    const urlInput = document.getElementById('cvAppsScriptUrlInput');
+
+    if (setupPanel.style.display === 'none') {
+        setupPanel.style.display = 'block';
+        // Pre-fill with current URL if exists
+        if (GOOGLE_APPS_SCRIPT_URL) {
+            urlInput.value = GOOGLE_APPS_SCRIPT_URL;
+        }
+        urlInput.focus();
+    } else {
+        setupPanel.style.display = 'none';
+    }
+}
+
+// Save the Apps Script URL
+function saveAppsScriptUrl() {
+    const urlInput = document.getElementById('cvAppsScriptUrlInput');
+    const url = urlInput.value.trim();
 
     if (url && url.includes('script.google.com')) {
         GOOGLE_APPS_SCRIPT_URL = url;
         localStorage.setItem('googleAppsScriptUrl', url);
         updateApiStatus();
-        updateStatus('Auto-push enabled! Parsing will now push directly to sheets.', 'success');
+        updateStatus('Auto-push enabled! Click position cards to push directly to sheets.', 'success');
+        document.getElementById('cvAppsScriptSetup').style.display = 'none';
     } else if (url === '') {
         // User cleared the URL - disable auto-push
         GOOGLE_APPS_SCRIPT_URL = '';
         localStorage.removeItem('googleAppsScriptUrl');
         updateApiStatus();
         updateStatus('Auto-push disabled. Will use clipboard mode.', 'info');
+        document.getElementById('cvAppsScriptSetup').style.display = 'none';
+    } else {
+        updateStatus('Invalid URL. Must be a script.google.com URL.', 'error');
     }
+}
+
+// Cancel Apps Script setup
+function cancelAppsScriptSetup() {
+    document.getElementById('cvAppsScriptSetup').style.display = 'none';
 }
 
 // Function to manually set/update the Apps Script URL
