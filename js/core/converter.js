@@ -12,6 +12,15 @@ const converterState = {
     sheetConnected: false
 };
 
+// Track NEW records added this session (separate from pulled data)
+const newRecordsThisSession = {
+    QB: [],
+    RB: [],
+    WR: [],
+    TE: [],
+    DST: []
+};
+
 // Google Sheet IDs per position (user's sheets)
 const POSITION_SHEET_IDS = {
     QB: '1nmPFQ1P1y8N0WPxHOq_FUEuBhSAW6ddLecsuRjyOqHo',
@@ -375,14 +384,17 @@ function parseConverterData() {
     records.forEach(record => {
         const key = `${record.player}|${record.week}`;
         if (!existingKeys.has(key)) {
-            playerGameData[position].push({
+            const newRecord = {
                 name: record.player,
                 position: record.position,
                 team: record.team,
                 week: record.week,
                 opponent: record.opponent,
                 fpts: record.fpts
-            });
+            };
+            playerGameData[position].push(newRecord);
+            // Also track as NEW for this session (so we only push new ones)
+            newRecordsThisSession[position].push(newRecord);
             existingKeys.add(key);
             addedCount++;
         }
@@ -723,13 +735,14 @@ function updatePositionSummary() {
 
     const positions = ['QB', 'RB', 'WR', 'TE', 'DST'];
     positions.forEach(pos => {
-        const count = playerGameData[pos]?.length || 0;
+        // Show NEW records count (what will be pushed), not total
+        const newCount = newRecordsThisSession[pos]?.length || 0;
         const countEl = document.getElementById(`cv${pos}Count`);
         const cardEl = document.querySelector(`.cv-pos-card[data-pos="${pos}"]`);
 
-        if (countEl) countEl.textContent = count;
+        if (countEl) countEl.textContent = newCount;
         if (cardEl) {
-            if (count > 0) {
+            if (newCount > 0) {
                 cardEl.classList.add('has-data');
             } else {
                 cardEl.classList.remove('has-data');
@@ -979,28 +992,32 @@ async function pushToGoogleSheet(positionOverride = null) {
         return;
     }
 
-    // Get ALL accumulated data for this position (not just last parsed player)
-    const records = playerGameData[position] || [];
+    // ONLY push NEW records added this session (not ones already in sheet)
+    const records = newRecordsThisSession[position] || [];
     if (records.length === 0) {
-        updateStatus(`No ${position} data to push`, 'error');
+        updateStatus(`No NEW ${position} records to push (all already in sheet)`, 'info');
         return;
     }
 
-    updateStatus(`Pushing ${records.length} ${position} records...`, 'info');
+    updateStatus(`Pushing ${records.length} NEW ${position} records...`, 'info');
 
     // Open the sheet in a new tab
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
     window.open(sheetUrl, '_blank');
 
-    // Build tab-separated data for pasting (ALL accumulated records for position)
-    let csvData = 'Player\tPosition\tTeam\tWeek\tOpponent\tFPTS\n'; // Header
+    // Build tab-separated data for pasting (ONLY new records)
+    // No header - user will paste below existing data
+    let csvData = '';
     records.forEach(record => {
         csvData += `${record.name}\t${record.position}\t${record.team || ''}\t${record.week}\t${record.opponent || ''}\t${record.fpts}\n`;
     });
 
     try {
         await navigator.clipboard.writeText(csvData);
-        updateStatus(`${records.length} ${position} records copied! Paste into sheet (Ctrl+V)`, 'success');
+        updateStatus(`${records.length} NEW ${position} records copied! Paste at bottom of sheet (Ctrl+V)`, 'success');
+
+        // Clear the new records for this position after pushing
+        newRecordsThisSession[position] = [];
     } catch (e) {
         updateStatus(`Sheet opened. Manually copy data.`, 'info');
     }
