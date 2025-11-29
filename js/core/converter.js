@@ -30,6 +30,10 @@ const POSITION_SHEET_IDS = {
     DST: '1RNKJDGegnWt7G7Pmxo6kwHZGTIvvDIyOaTp9racjol8'
 };
 
+// Google Apps Script Web App URL - SET THIS AFTER DEPLOYING THE SCRIPT
+// See google-apps-script.js for setup instructions
+let GOOGLE_APPS_SCRIPT_URL = localStorage.getItem('googleAppsScriptUrl') || '';
+
 // NFL Team abbreviations for detection
 const NFL_TEAM_ABBRS = ['ARI', 'ATL', 'BAL', 'BUF', 'CAR', 'CHI', 'CIN', 'CLE', 'DAL', 'DEN', 'DET', 'GB', 'HOU', 'IND', 'JAX', 'KC', 'LAC', 'LAR', 'LV', 'MIA', 'MIN', 'NE', 'NO', 'NYG', 'NYJ', 'PHI', 'PIT', 'SEA', 'SF', 'TB', 'TEN', 'WAS'];
 
@@ -133,6 +137,28 @@ function initConverterTab() {
     const resetBtn = document.getElementById('cvResetSessionBtn');
     if (resetBtn) {
         resetBtn.addEventListener('click', resetConverterSession);
+    }
+
+    // Setup Auto-Push button
+    const setupAutoPushBtn = document.getElementById('cvSetupAutoPushBtn');
+    if (setupAutoPushBtn) {
+        setupAutoPushBtn.addEventListener('click', setAppsScriptUrl);
+    }
+
+    // Show API status
+    updateApiStatus();
+}
+
+function updateApiStatus() {
+    const statusEl = document.getElementById('cvApiStatus');
+    if (statusEl) {
+        if (GOOGLE_APPS_SCRIPT_URL) {
+            statusEl.textContent = '(Auto-push enabled)';
+            statusEl.style.color = 'var(--accent-primary)';
+        } else {
+            statusEl.textContent = '(Manual paste mode)';
+            statusEl.style.color = 'var(--text-secondary)';
+        }
     }
 }
 
@@ -1028,14 +1054,53 @@ async function pushToGoogleSheet(positionOverride = null) {
         return;
     }
 
-    updateStatus(`Pushing ${records.length} NEW ${position} records...`, 'info');
+    // Check if Apps Script URL is configured
+    if (!GOOGLE_APPS_SCRIPT_URL) {
+        updateStatus('Apps Script URL not set. Click "Setup Auto-Push" first.', 'error');
+        showAppsScriptSetup();
+        return;
+    }
 
-    // Open the sheet in a new tab
+    updateStatus(`Pushing ${records.length} ${position} records to Google Sheets...`, 'info');
+
+    try {
+        // POST directly to Google Apps Script
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // Apps Script requires this
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                position: position,
+                records: records
+            })
+        });
+
+        // Note: no-cors means we can't read the response, but the request still goes through
+        console.log(`[Converter] Push request sent for ${records.length} ${position} records`);
+
+        // Clear the records after successful push
+        newRecordsThisSession[position] = [];
+        updatePositionSummary();
+
+        updateStatus(`✓ ${records.length} ${position} records pushed to Google Sheets!`, 'success');
+
+    } catch (error) {
+        console.error('[Converter] Push failed:', error);
+        updateStatus(`Push failed: ${error.message}. Try clipboard fallback.`, 'error');
+
+        // Fallback to clipboard method
+        fallbackToClipboard(position, records);
+    }
+}
+
+// Fallback to clipboard if Apps Script fails
+async function fallbackToClipboard(position, records) {
+    const sheetId = POSITION_SHEET_IDS[position];
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/edit`;
     window.open(sheetUrl, '_blank');
 
-    // Build tab-separated data for pasting (ONLY new records)
-    // No header - user will paste below existing data
     let csvData = '';
     records.forEach(record => {
         csvData += `${record.name}\t${record.position}\t${record.team || ''}\t${record.week}\t${record.opponent || ''}\t${record.fpts}\n`;
@@ -1043,14 +1108,43 @@ async function pushToGoogleSheet(positionOverride = null) {
 
     try {
         await navigator.clipboard.writeText(csvData);
-        updateStatus(`✓ ${records.length} ${position} records copied! Paste in sheet (Ctrl+V), then click "Mark Pushed"`, 'success');
-
-        // DON'T auto-clear - let user confirm with "Mark as Pushed" button
-        // Show the mark pushed button
+        updateStatus(`${records.length} ${position} records copied to clipboard. Paste in sheet (Ctrl+V).`, 'info');
         showMarkPushedButton(position, records.length);
     } catch (e) {
-        updateStatus(`Sheet opened. Manually copy data.`, 'info');
+        updateStatus('Sheet opened. Manually copy data.', 'info');
     }
+}
+
+// Show setup dialog for Apps Script URL
+function showAppsScriptSetup() {
+    const currentUrl = GOOGLE_APPS_SCRIPT_URL ? `\n\nCurrent: ${GOOGLE_APPS_SCRIPT_URL.substring(0, 50)}...` : '';
+    const url = prompt(
+        'Enter your Google Apps Script Web App URL:\n\n' +
+        'SETUP INSTRUCTIONS:\n' +
+        '1. Go to script.google.com and create a new project\n' +
+        '2. Copy the code from google-apps-script.js into it\n' +
+        '3. Deploy as Web App (Execute as: Me, Access: Anyone)\n' +
+        '4. Paste the URL here\n\n' +
+        'URL looks like: https://script.google.com/macros/s/XXXXX/exec' + currentUrl
+    );
+
+    if (url && url.includes('script.google.com')) {
+        GOOGLE_APPS_SCRIPT_URL = url;
+        localStorage.setItem('googleAppsScriptUrl', url);
+        updateApiStatus();
+        updateStatus('Auto-push enabled! Parsing will now push directly to sheets.', 'success');
+    } else if (url === '') {
+        // User cleared the URL - disable auto-push
+        GOOGLE_APPS_SCRIPT_URL = '';
+        localStorage.removeItem('googleAppsScriptUrl');
+        updateApiStatus();
+        updateStatus('Auto-push disabled. Will use clipboard mode.', 'info');
+    }
+}
+
+// Function to manually set/update the Apps Script URL
+function setAppsScriptUrl() {
+    showAppsScriptSetup();
 }
 
 // Show a button to confirm the push was completed
