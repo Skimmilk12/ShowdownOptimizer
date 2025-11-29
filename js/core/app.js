@@ -28,6 +28,7 @@ function selectSport(sportId) {
     document.getElementById('showdownTab').classList.add('active');
     document.getElementById('classicTab').style.display = 'none';
     document.getElementById('playerdataTab').style.display = 'none';
+    document.getElementById('converterTab').style.display = 'none';
 
     // Update header
     document.getElementById('headerTitle').textContent = 'NFL Madden Optimizer';
@@ -50,6 +51,7 @@ function backToSportSelector() {
     document.getElementById('showdownTab').style.display = 'none';
     document.getElementById('classicTab').style.display = 'none';
     document.getElementById('playerdataTab').style.display = 'none';
+    document.getElementById('converterTab').style.display = 'none';
 
     // Reset header
     document.getElementById('headerTitle').textContent = 'Showdown Optimizer';
@@ -893,6 +895,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize Player Data tab
     initPlayerDataTab();
+
+    // Initialize Converter tab
+    if (typeof initConverterTab === 'function') {
+        initConverterTab();
+    }
 
     // Initialize Showdown optimizer
     if (typeof initShowdownDOM === 'function') {

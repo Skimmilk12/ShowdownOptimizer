@@ -90,6 +90,12 @@
             </svg>
             Player Data
         </div>
+        <div class="main-tab" data-tab="converter">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            Converter
+        </div>
     </nav>
 
     <!-- Showdown Tab Content (hidden until sport selected) -->
@@ -1098,6 +1104,257 @@
         </div>
     </div>
 
+    <!-- Converter Tab Content (hidden until sport selected) -->
+    <div class="tab-content" id="converterTab" style="display: none;">
+        <div class="container">
+            <!-- Stats Row for Converter -->
+            <div class="stats-row">
+                <div class="stat-card green">
+                    <div class="stat-card-label">Players Parsed</div>
+                    <div class="stat-card-value" id="cvPlayersParsed">0</div>
+                    <div class="stat-card-sub">This session</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-card-label">Records Added</div>
+                    <div class="stat-card-value" id="cvRecordsAdded">0</div>
+                    <div class="stat-card-sub">Game logs</div>
+                </div>
+                <div class="stat-card cyan">
+                    <div class="stat-card-label">Current Position</div>
+                    <div class="stat-card-value" id="cvCurrentPosition">—</div>
+                    <div class="stat-card-sub">Detected</div>
+                </div>
+                <div class="stat-card amber">
+                    <div class="stat-card-label">Current Player</div>
+                    <div class="stat-card-value" id="cvCurrentPlayer" style="font-size: 0.9rem;">—</div>
+                    <div class="stat-card-sub">Name</div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-card-label">Status</div>
+                    <div class="stat-card-value" id="cvStatus" style="font-size: 1rem;">Ready</div>
+                    <div class="stat-card-sub">Paste data below</div>
+                </div>
+            </div>
+
+            <!-- Main Converter Card -->
+            <div class="grid-2">
+                <!-- Paste Data Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            Paste DraftKings Player Data
+                        </div>
+                        <button class="btn btn-secondary" id="cvClearBtn">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                            Copy the game log table from a DraftKings player page (Week, FPTS, Salary, etc.) and paste below.
+                        </p>
+                        <textarea id="cvPasteArea" class="converter-textarea" placeholder="Paste player game log data here...
+
+Example format from DraftKings player page:
+Week  FPTS   Salary   Matchup   Pass Yds  Pass TD  INT  Rush Yds...
+1     24.5   $7,200   vs TB     285       2        1    15
+2     18.3   $7,000   @ KC      198       1        0    22
+..."></textarea>
+                        <div class="converter-buttons">
+                            <button class="btn btn-primary" id="cvParseBtn">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                                </svg>
+                                Parse Data
+                            </button>
+                            <button class="btn btn-secondary" id="cvAddToDataBtn" disabled>
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Add to Player Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Info & Preview Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Player Info
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="converter-player-info" id="cvPlayerInfo">
+                            <div class="cv-info-placeholder">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="48" height="48">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                </svg>
+                                <p>Paste and parse player data to see info</p>
+                            </div>
+                        </div>
+
+                        <!-- Manual Override Section -->
+                        <div class="cv-manual-override" id="cvManualOverride" style="display: none;">
+                            <div class="cv-override-row">
+                                <div class="cv-override-field">
+                                    <label>Player Name</label>
+                                    <input type="text" id="cvPlayerName" placeholder="e.g. Josh Allen">
+                                </div>
+                                <div class="cv-override-field">
+                                    <label>Team</label>
+                                    <select id="cvPlayerTeam">
+                                        <option value="">Select Team</option>
+                                    </select>
+                                </div>
+                                <div class="cv-override-field">
+                                    <label>Position</label>
+                                    <select id="cvPlayerPosition">
+                                        <option value="">Auto-detect</option>
+                                        <option value="QB">QB</option>
+                                        <option value="RB">RB</option>
+                                        <option value="WR">WR</option>
+                                        <option value="TE">TE</option>
+                                        <option value="DST">DST</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Parsed Data Preview -->
+            <div class="card" id="cvPreviewCard" style="display: none;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Parsed Game Logs
+                        <span class="section-slate-badge" id="cvPreviewCount">0 records</span>
+                    </div>
+                    <button class="btn btn-secondary" id="cvExportPreviewBtn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Export CSV
+                    </button>
+                </div>
+                <div class="table-container" id="cvPreviewTable">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- Google Sheets Integration Card -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+                        </svg>
+                        Google Sheets Sync
+                    </div>
+                    <span class="cv-sheets-status" id="cvSheetsStatus">Not Connected</span>
+                </div>
+                <div class="card-body">
+                    <div class="cv-sheets-setup" id="cvSheetsSetup">
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">
+                            Connect to a Google Sheet to automatically sync your player data. The sheet must be set to "Anyone with link can edit".
+                        </p>
+                        <div class="cv-sheets-input-row">
+                            <input type="text" id="cvSheetId" class="cv-sheet-input" placeholder="Paste your Google Sheet ID here...">
+                            <button class="btn btn-primary" id="cvConnectSheetBtn">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                                </svg>
+                                Connect
+                            </button>
+                        </div>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
+                            Sheet ID is the long string in your Google Sheets URL: docs.google.com/spreadsheets/d/<strong>[SHEET_ID]</strong>/edit
+                        </p>
+                    </div>
+                    <div class="cv-sheets-connected" id="cvSheetsConnected" style="display: none;">
+                        <div class="cv-sheets-info">
+                            <span class="cv-sheets-name" id="cvSheetName">Player Data Sheet</span>
+                            <button class="btn btn-secondary btn-sm" id="cvDisconnectSheetBtn">Disconnect</button>
+                        </div>
+                        <div class="cv-sheets-actions">
+                            <button class="btn btn-primary" id="cvSyncToSheetBtn" disabled>
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                                Push to Sheet
+                            </button>
+                            <button class="btn btn-secondary" id="cvPullFromSheetBtn">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                Pull from Sheet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- All Positions Data Summary -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        Position Data Summary
+                    </div>
+                    <button class="btn btn-secondary" id="cvExportAllBtn">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Export All CSVs
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="cv-position-summary" id="cvPositionSummary">
+                        <div class="cv-pos-card" data-pos="QB">
+                            <div class="cv-pos-badge qb">QB</div>
+                            <div class="cv-pos-count" id="cvQBCount">0</div>
+                            <div class="cv-pos-label">records</div>
+                        </div>
+                        <div class="cv-pos-card" data-pos="RB">
+                            <div class="cv-pos-badge rb">RB</div>
+                            <div class="cv-pos-count" id="cvRBCount">0</div>
+                            <div class="cv-pos-label">records</div>
+                        </div>
+                        <div class="cv-pos-card" data-pos="WR">
+                            <div class="cv-pos-badge wr">WR</div>
+                            <div class="cv-pos-count" id="cvWRCount">0</div>
+                            <div class="cv-pos-label">records</div>
+                        </div>
+                        <div class="cv-pos-card" data-pos="TE">
+                            <div class="cv-pos-badge te">TE</div>
+                            <div class="cv-pos-count" id="cvTECount">0</div>
+                            <div class="cv-pos-label">records</div>
+                        </div>
+                        <div class="cv-pos-card" data-pos="DST">
+                            <div class="cv-pos-badge dst">DST</div>
+                            <div class="cv-pos-count" id="cvDSTCount">0</div>
+                            <div class="cv-pos-label">records</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Team Detail Modal -->
     <div class="team-detail-overlay" id="teamDetailOverlay">
         <div class="team-detail-modal" id="teamDetailModal">
@@ -1124,6 +1381,7 @@
     <script src="js/core/utils.js"></script>
     <script src="js/sports/madden/showdown.js"></script>
     <script src="js/sports/madden/classic.js"></script>
+    <script src="js/core/converter.js"></script>
     <script src="js/core/app.js"></script>
 </body>
 </html>
